@@ -199,9 +199,21 @@ class FourierWavefunction:
         wf.setPsi(psi,set_dual=True)
         return wf
 
+def T_standard(x):
+    shape = x[0].shape
+    d = len(x)
+    result = np.zeros(shape)
+    for n in range(d):
+        result += 0.5 * x[n]**2
+
+    return result
+
+def E_zero(t):
+    return 0.0
+
 class FourierHamiltonian:
     """ Class for representing the system Hamiltonian on a FourierGrid."""
-    def __init__(self, grid, Tfun, Vfun, Efun):
+    def __init__(self, grid, Vfun, Tfun = T_standard, Efun = E_zero):
         """ Constructor.
 
         Tfun = a function that evaluates the kinetic potential in a k-vector.
@@ -222,8 +234,11 @@ class FourierHamiltonian:
         self.T = Tfun(self.grid.kk)
 
     def setSpatialPotential(self,Vfun):
-        self.Vfun = Vfun
-        self.V = Vfun(self.grid.xx)
+        if type(Vfun) == np.ndarray:
+            self.V = Vfun
+        else:
+            self.Vfun = Vfun
+            self.V = Vfun(self.grid.xx)
 
     def apply(self,psi):
         """ Apply the Hamiltonian (minus E-field) to a spatial wavefunction psi. """
