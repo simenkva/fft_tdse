@@ -199,41 +199,68 @@ class FourierWavefunction:
         wf.setPsi(psi,set_dual=True)
         return wf
 
-def T_standard(x):
-    shape = x[0].shape
-    d = len(x)
+def T_standard(k):
+    shape = k[0].shape
+    d = len(k)
     result = np.zeros(shape)
     for n in range(d):
-        result += 0.5 * x[n]**2
+        result += 0.5 * k[n]**2
 
     return result
 
 def E_zero(t):
     return 0.0
 
+def D_dipole(x):
+    """ Dipole operator."""
+    shape = x[0].shape
+    d = len(x)
+    D = np.zeros(shape) # dipole operator.
+    for n in range(d):
+        D += x[n]
+
+    return D
+
 class FourierHamiltonian:
     """ Class for representing the system Hamiltonian on a FourierGrid."""
-    def __init__(self, grid, Vfun, Tfun = T_standard, Efun = E_zero):
+    def __init__(self, grid, Vfun, Tfun = T_standard, Dfun = D_dipole, Efun = E_zero):
         """ Constructor.
 
-        Tfun = a function that evaluates the kinetic potential in a k-vector.
-        Vfun = a function that evaluates the spatial potential in an x-vector.
+        $$ H(t) = T + V + E(t)D $$
+
+        Tfun = a function that evaluates the kinetic potential in a k-vector, or an ndarray
+        Vfun = a function that evaluates the spatial potential in an x-vector, or an ndarray
+        Dfun = a function that evaluates the spatial potential in an x-vector, or an ndarray
         Efun = a function that evaluates the electric field at a time t.
 
         """
         self.grid = grid
         self.setKineticPotential(Tfun)
         self.setSpatialPotential(Vfun)
+        self.setTimeDependentPotential(Dfun)
         self.Efun = Efun
-        self.D = np.zeros(grid.ng) # dipole operator.
-        for n in range(len(grid.ng)):
-            self.D += grid.xx[n]
+
+    def setTimeDependentPotential(self,Dfun):
+        if type(Dfun) == np.ndarray:
+            self.D = Dfun
+        else:
+            self.Dfun = Dfun
+            self.D = self.Dfun(self.grid.xx)
 
     def setKineticPotential(self,Tfun):
-        self.Tfun = Tfun
-        self.T = Tfun(self.grid.kk)
+        if type(Tfun) == np.ndarray:
+            self.T = Tfun
+        else:
+            self.Tfun = Tfun
+            self.T = Tfun(self.grid.kk)
 
     def setSpatialPotential(self,Vfun):
+        """ Set the spatial potential.
+
+        Vfun: a function that is evaluated, or an ndarray whose reference
+        is stored.
+        """
+
         if type(Vfun) == np.ndarray:
             self.V = Vfun
         else:
