@@ -7,7 +7,7 @@ on the form
 
 $$ H(t) = T + V + E(t)*D, $$
 
-where $T$ is diagonal in the Fourier basis, and where $V$ and $X$ are diagonal in the
+where $T$ is diagonal in the Fourier basis, and where $V$ and $D$ are diagonal in the
 spatial basis. $E(t)$ is a time-dependent scalar function.
 
 See the demonstration Jupter notebooks for an introduction to the capabilities
