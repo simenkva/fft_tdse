@@ -2,17 +2,20 @@ import numpy as np
 from matplotlib.cm import get_cmap
 
 
-def psiviz(I,normalize_columns=False):
+def psiviz(I,normalize_columns=False,ampmap = lambda u: u):
 
     """ Compute an RGB bitmap visualization of a complex array.
     For 1D "movies", it is useful to normalize each column, via the optional
-    parameter normalize_coluns = True. """
+    parameter normalize_coluns = True.
+
+    ampmap allows you to remap the amplitude at each point to enhance, say, low amplitudes. """
 
     shape = I.shape
     nn = np.prod(shape)
 
 
-    image2 = np.abs(I)
+
+    image2 = ampmap(np.abs(I))
 
     #print('Rendering image of size ', shape)
     if normalize_columns:

@@ -309,7 +309,7 @@ class Propagator:
 
         #wf.applyFrequencyOperator(self.Tprop,update_dual = not will_do_another_step)
 
-        wf.applyFrequencyOperator(self.Tprop)
+        wf.applyFrequencyOperator(self.Tprop, update_dual = not will_do_another_step)
 
 
 from scipy.sparse.linalg import cg, LinearOperator
