@@ -96,7 +96,7 @@ class FourierWavefunction:
         self.psi = np.zeros(self.grid.ng,dtype=complex)
         self.phi = np.zeros(self.grid.ng,dtype=complex)
 
-        self.currmap = lambda psi,n:  np.sum(np.imag(ifftn(1j*k[n]*fftn(psi)) * psi.conj()),axis=notn(n))
+        #self.currmap = lambda psi,n:  np.sum(np.imag(ifftn(1j*k[n]*fftn(psi)) * psi.conj()),axis=notn(n))
 
     def density(self,n):
         """ compute density along axis n. """
@@ -107,7 +107,7 @@ class FourierWavefunction:
     def current(self,n):
         """ compute current density along axis n. """
         notn = lambda n: tuple(k for k in range(self.grid.d) if k != n) # all axes except n
-        jp = np.sum(np.imag(ifftn(1j*self.grid.kk[n]*self.phi) * self.psi.conj()),axis=notn(n)) * self.grid.dtau / self.grid.h[n]
+        jp = np.sum(np.imag(ifftn(1j*self.grid.kk[n]*self.phi, norm='ortho') * self.psi.conj()),axis=notn(n)) * self.grid.dtau / self.grid.h[n]
         return jp
 
     def phiNorm(self):
@@ -143,7 +143,7 @@ class FourierWavefunction:
             self.normalizePsi()
 
         if set_dual:
-            self.phi = fftn(self.psi)
+            self.phi = fftn(self.psi, norm = 'ortho')
 
     def setPhi(self,phi,normalize = False, set_dual = True, copy = True):
         """ Set the frequency wavefunction phi.
@@ -164,19 +164,19 @@ class FourierWavefunction:
             self.normalizePhi()
 
         if set_dual:
-            self.psi = ifftn(self.phi)
+            self.psi = ifftn(self.phi, norm = 'ortho')
 
     def applySpaceOperator(self, V, update_dual = True):
         """ Apply a local potential V to psi. If update_dual == True, then phi is recomputed."""
         self.psi = V * self.psi
         if update_dual:
-            self.phi = fftn(self.psi)
+            self.phi = fftn(self.psi, norm = 'ortho')
 
     def applyFrequencyOperator(self, V, update_dual = True):
         """ Apply a local potential V to phi. If update_dual == True, then psi is recomputed."""
         self.phi = V * self.phi
         if update_dual:
-            self.psi = ifftn(self.phi)
+            self.psi = ifftn(self.phi, norm = 'ortho')
 
     def interpolate(self,new_grid,kind='linear'):
         """ Interpolate / pad psi at new grid. """
@@ -271,6 +271,14 @@ class FourierHamiltonian:
         """ Apply the Hamiltonian (minus E-field) to a spatial wavefunction psi. """
         return ifftn(self.T*fftn(psi)) + self.V*psi
 
+    def energy(self,wf,Efield = 0.0):
+        """ Compute the energy of the wavefunction psi. Assumes L2 normalized phi and psi. """
+        #n1 = np.sum(wf.phi.conj() * wf.phi)
+        #n2 = np.sum(wf.psi.conj() * wf.psi)
+
+        return self.grid.dtau*(np.sum(wf.phi.conj() * self.T * wf.phi) + np.sum(wf.psi.conj() * (self.V + Efield * self.D) * wf.psi))
+
+
 class Propagator:
     """ Class for Strang splitting propagation of a FourierWavefunction using a FourierHamiltonian."""
     def __init__(self,ham,dt,time_dependent = True):
@@ -354,7 +362,7 @@ class GroundStateComputer:
             delta = np.linalg.norm(psi-psi_prev)
             Hpsi = self.ham.apply(psi.reshape(shape)).reshape((n,))
             E = np.inner(psi,Hpsi)
-
+            
             resid = np.linalg.norm(Hpsi - E*psi)
             print(f'Iteration {k}, delta = {delta}, resid = {resid}, E = {E.real}')
             if delta < 10*tol:
