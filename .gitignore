@@ -3,3 +3,6 @@
 __pycache__
 *.pyc
 *.h5
+*.mp4
+dev_notebooks
+data
