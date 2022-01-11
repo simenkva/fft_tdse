@@ -1,0 +1,49 @@
+# verbose: print some extra information while running.
+verbose: True
+
+# If true, figures will be generated and saved to PNG files
+figures: True
+
+# Filename prefix for saved data
+sim_name: data/results
+
+# Grid parameters. n = number of
+# points in each direction, should be power of 2.
+# 2L = box size, i.e., domain is [-L,L]**3.
+grid:
+  n: 128
+  L: 50
+  n_gs: 64
+  L_gs: 15
+  gs_tol: 1.0e-5
+
+# Set up masses (m) and charges (q) of
+# particles. The first particle will be `reference'.
+particles:
+  q: [1.0, 1.0, -1.0, -1.0]
+  m: [200, 100, 1, 1]
+
+# Set up model Coulomb potential.
+potential:
+  U: 'lambda x: np.exp(-0.1*x**2)'
+
+# Set up laser parameters.
+# The pulse function is:
+# Efun = lambda t: E0*np.exp(-(t-T)**2/tau**2) * np.cos(om*t)
+laser:
+  E0: 0.25
+  tau: 20.5
+  om: 0.159
+  T: 50
+
+# Set up integration parameters.
+# t_final: end of simulation time interval
+# dt: time step
+# n_inspect: number of inspections of densities over
+# the simulation interval
+# n_save: number of full wavefunction saves.
+integration:
+  t_final: 1.0
+  dt: 0.01
+  n_inspect: 10
+  n_save: 10
