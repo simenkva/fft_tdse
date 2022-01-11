@@ -4,8 +4,9 @@ verbose: True
 # If true, figures will be generated and saved to PNG files
 figures: True
 
-# Filename prefix for saved data
-sim_name: data/results
+# Filename prefix for saved data.
+# Make sure any path used exists.
+sim_name: results
 
 # Grid parameters. n = number of
 # points in each direction, should be power of 2.
