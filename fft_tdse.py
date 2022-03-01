@@ -3,6 +3,34 @@ from numpy.fft import fftn, ifftn, fftshift
 import matplotlib.pyplot as plt
 from scipy.interpolate import interpn
 
+
+
+def fftgrid(a,b,N):
+    """ Compute grid for Fourier pseudospectral method on an interval.
+
+    Example:
+
+    x, k = fftgrid(a, b, N).
+
+    Generate grid of N points in the interval [a,b] with periodic BCs. The point b is not included,
+    i.e., it is identified with a. Returns x = grid points as array, and f = frequencies as array. If
+    psi is a (periodic) function evaluated at the grid points, its
+    derivative at the grid points is given to N'th order by
+
+       dpsi = ifft(1j*k*fft(psi)).
+
+    """
+
+    x = np.linspace(a,b,N+1)
+    x = x[:-1]
+    h = (b-a)/N
+
+    k_c = np.pi/h
+    k = np.linspace(-k_c, k_c, N+1)
+    k = np.fft.ifftshift(k[:-1])
+    return x,k
+
+
 class FourierGrid:
     def __init__(self,a,b,ng):
         """ Constructor for FourierGrid.
@@ -20,31 +48,31 @@ class FourierGrid:
         self.defineGrid(a,b,ng)
 
         return
-
-    def fftgrid(self,a,b,N):
-        """ Compute grid for Fourier pseudospectral method on an interval.
-
-        Example:
-
-        x, k = fftgrid(a, b, N).
-
-        Generate grid of N points in the interval [a,b] with periodic BCs. The point b is not included,
-        i.e., it is identified with a. Returns x = grid points as array, and f = frequencies as array. If
-        psi is a (periodic) function evaluated at the grid points, its
-        derivative at the grid points is given to N'th order by
-
-           dpsi = ifft(1j*k*fft(psi)).
-
-        """
-
-        x = np.linspace(a,b,N+1)
-        x = x[:-1]
-        h = (b-a)/N
-
-        k_c = np.pi/h
-        k = np.linspace(-k_c, k_c, N+1)
-        k = np.fft.ifftshift(k[:-1])
-        return x,k
+    # 
+    # def fftgrid(self,a,b,N):
+    #     """ Compute grid for Fourier pseudospectral method on an interval.
+    #
+    #     Example:
+    #
+    #     x, k = fftgrid(a, b, N).
+    #
+    #     Generate grid of N points in the interval [a,b] with periodic BCs. The point b is not included,
+    #     i.e., it is identified with a. Returns x = grid points as array, and f = frequencies as array. If
+    #     psi is a (periodic) function evaluated at the grid points, its
+    #     derivative at the grid points is given to N'th order by
+    #
+    #        dpsi = ifft(1j*k*fft(psi)).
+    #
+    #     """
+    #
+    #     x = np.linspace(a,b,N+1)
+    #     x = x[:-1]
+    #     h = (b-a)/N
+    #
+    #     k_c = np.pi/h
+    #     k = np.linspace(-k_c, k_c, N+1)
+    #     k = np.fft.ifftshift(k[:-1])
+    #     return x,k
 
     def defineGrid(self,a,b,ng):
         """ Set the grid. Called from constructor, but can be called at other times, too. See doc for constructor. """
@@ -60,7 +88,7 @@ class FourierGrid:
         self.x = []
         self.k = []
         for i in range(d):
-            x0,k0 = self.fftgrid(a[i], b[i], ng[i])
+            x0,k0 = fftgrid(a[i], b[i], ng[i])
             self.x.append(x0)
             self.k.append(k0)
 
@@ -362,7 +390,7 @@ class GroundStateComputer:
             delta = np.linalg.norm(psi-psi_prev)
             Hpsi = self.ham.apply(psi.reshape(shape)).reshape((n,))
             E = np.inner(psi,Hpsi)
-            
+
             resid = np.linalg.norm(Hpsi - E*psi)
             print(f'Iteration {k}, delta = {delta}, resid = {resid}, E = {E.real}')
             if delta < 10*tol:
