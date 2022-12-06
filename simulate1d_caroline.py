@@ -6,6 +6,7 @@ import matplotlib
 matplotlib.use('AGG')
 from tqdm import tqdm
 from scipy.io import savemat
+import h5py
 
 #
 # figindex is a global counter for
@@ -314,3 +315,20 @@ if figures:
 matlab_output = {'x': x, 't': t_range, 'psigrid': psi_hist, 'E': E_hist, 'E0': E0,
                  't0': t0, 'om': om, 'nc': nc, 'param': p}
 savemat(f'{sim_name}.mat', matlab_output)
+
+
+# Create a file name
+from datetime import datetime
+fname = f'{sim_name}_{datetime.now().strftime("%d%m%Y_%H%M")}.h5'
+
+# Open an h5 file
+with h5py.File(fname,'w') as h5file:
+
+    # Save simulation parameters.
+    h5file.create_dataset('/parameters/time', data=t_range)
+    h5file.create_dataset('/parameters/grid', data=x)
+    h5file.create_dataset('/wavefunctions/psigrid', data = psi_hist, compression = 'gzip')
+    h5file.create_dataset('/computed/energy', data = E_hist)
+
+
+
