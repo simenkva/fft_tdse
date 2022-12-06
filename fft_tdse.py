@@ -48,7 +48,7 @@ class FourierGrid:
         self.defineGrid(a,b,ng)
 
         return
-    # 
+    #
     # def fftgrid(self,a,b,N):
     #     """ Compute grid for Fourier pseudospectral method on an interval.
     #
@@ -227,12 +227,13 @@ class FourierWavefunction:
         wf.setPsi(psi,set_dual=True)
         return wf
 
-def T_standard(k):
+def T_standard(k,mu = 1):
+    """ kinetic energy of particle(s) with mass mu."""
     shape = k[0].shape
     d = len(k)
     result = np.zeros(shape)
     for n in range(d):
-        result += 0.5 * k[n]**2
+        result += 0.5 * k[n]**2 / mu
 
     return result
 
