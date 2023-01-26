@@ -300,6 +300,7 @@ with h5py.File(fname,'w') as h5file:
     # Save simulation parameters.
     h5file.create_dataset('/parameters/time', data=t_range)
     h5file.create_dataset('/parameters/grid', data=x)
-    h5file.create_dataset('/wavefunctions/psigrid', data = psi_hist, compression = 'gzip')
+    h5file.create_dataset('/wavefunctions/psigrid_re', data = psi_hist.real, compression = 'gzip')
+    h5file.create_dataset('/wavefunctions/psigrid_im', data = psi_hist.imag, compression = 'gzip')
     h5file.create_dataset('/computed/energy', data = E_hist)
 

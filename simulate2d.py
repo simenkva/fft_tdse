@@ -1,6 +1,7 @@
 #
-# Simulation script for 4 particles in 1D.
+# Simulation script for 1 particle in 2D
 #
+
 
 import numpy as np
 from fft_tdse import *
@@ -13,6 +14,12 @@ import h5py
 
 
 #
+# Morse potential
+#
+def morse(r, a = 1.0, D = 1.0, r_e = 1.0):
+    return D * (1.0 - np.exp(-a * (r-r_e)))**2 - D
+
+#
 # figindex is a global counter for
 # figures being saved to disk
 #
@@ -21,7 +28,7 @@ def figname():
     """ Return figure filename and advance counter. """
     global figindex
     figindex += 1
-    return f'{sim_name}_fig_{figindex:03d}.png'
+    return f'{sim_name}_fig_{figindex:05d}.png'
 
 #
 # Read configuration file
@@ -54,18 +61,18 @@ if verbose:
 try:
     q = config['particles']['q']
 except:
-    q = [1.0, 1.0, -1.0, -1.0] # charges of particles
+    q = 1.0 # charges of particles
 try:
     m = config['particles']['m']
 except:
-    m = [200, 100, 1, 1]  #masses of particles
+    m = 1.0  #masses of particles
 try:
     temp = config['potential']['U']
     Ufun = eval(temp)
     if verbose:
         print(f'Model potential: {temp}')
 except:
-    Ufun = lambda x: np.exp(-0.1*x**2)
+    Ufun = lambda x, y: .5 * (x**2 + y**2)
     if verbose:
         print(f'Model potential is default.')
 
@@ -73,11 +80,11 @@ except:
 try:
     ng = config['grid']['n']
 except:
-    ng = 128
+    ng = 512
 try:
     L = config['grid']['L']
 except:
-    L = 50
+    L = 20
 try:
     gs_ng = config['grid']['n_gs']
 except:
@@ -94,11 +101,11 @@ except:
 try:
     t_final = config['integration']['t_final']
 except:
-    t_final = 1500
+    t_final = 50
 try:
     dt = config['integration']['dt']
 except:
-    dt = 0.1
+    dt = 0.01
 try:
     n_inspect = config['integration']['n_inspect']
 except:
@@ -112,26 +119,26 @@ except:
 try:
     # Set up laser field
     E0 = config['pulse']['E0']
-    tau = config['pulse']['tau']
     om = config['pulse']['om']
     T = config['pulse']['T']
+    t0 = config['pulse']['t0']
 except:
-    E0, tau, om, T = 0.25, 20.5, 1.0/(2*np.pi), 50
+    E0, om, T, t0 = 0.05, 0.482681, 2*np.pi*100.0/0.482681, 0
 
 
 if verbose:
     print(f'Particle charges: {q}')
     print(f'Particle masses: {m}')
-    print(f'Number of grid points: {ng}**3')
-    print(f'Simulation domain: [-{L},{L}]**3')
-    print(f'Number of grid points (ground-state calc): {gs_ng}**3')
-    print(f'Simulation domain (ground-state calc): [-{gs_L},{gs_L}]**3')
+    print(f'Number of grid points: {ng}**2')
+    print(f'Simulation domain: [-{L},{L}]**2')
+    print(f'Number of grid points (ground-state calc): {gs_ng}**2')
+    print(f'Simulation domain (ground-state calc): [-{gs_L},{gs_L}]**2')
     print(f'Termination tolerance for ground-state calc: {gs_tol}')
     print(f'Time interval: [0,{t_final}]')
     print(f'Time step: {dt}')
     print(f'Number of wavefunction saves: {n_save}')
     print(f'Number of density inspections: {n_inspect}')
-    print(f'Laser parameters E0, tau, om, T = {E0, tau, om, T}')
+    print(f'Laser parameters E0, om, t0, T = {E0, om, t0, T}')
 
 
 
@@ -139,23 +146,30 @@ if verbose:
 # Set up system and simulation parameters
 #
 
-mu = [m[0]*m[1]/(m[0]+m[1]), m[0]*m[2]/(m[0]+m[2]), m[0]*m[3]/(m[0]+m[3])] # reduced masses
-
-# manybody potentials
-Vfun = lambda xx: q[0]*q[1]*Ufun(xx[0]) + q[0]*q[2]*Ufun(xx[1]) + q[0]*q[3]*Ufun(xx[2]) + q[1]*q[2]*Ufun(xx[0]-xx[1]) + q[1]*q[3]*Ufun(xx[0]-xx[2]) + q[2]*q[3]*Ufun(xx[1]-xx[2])
-Tfun = lambda kk: (1.0/m[0]) * (kk[0]*kk[1] + kk[0]*kk[2] + kk[1]*kk[2]) + (0.5/mu[0])*kk[0]**2 + (0.5/mu[1])*kk[1]**2 + (0.5/mu[2])*kk[2]**2
-Dfun = lambda xx: q[1]*xx[0] + q[2]*xx[1] * q[3]*xx[2]
+# Hamiltonian specification
+Vfun = lambda xx: Ufun(xx[0], xx[1])
+Tfun = lambda kk: (0.5/m) * (kk[0]**2 + kk[1]**2)
+Dfun = lambda xx: q*xx[0] 
 
 # Set up grid
-grid = FourierGrid([-L,-L,-L], [L,L,L], [ng, ng, ng])
+grid = FourierGrid([-L,-L], [L,L], [ng, ng])
 #t_final = 100
 
 
-Efun = lambda t: E0*np.exp(-(t-T)**2/tau**2) * np.cos(om*t)
+#Efun = lambda t: E0*np.exp(-(t-T)**2/tau**2) * np.cos(om*t)
+
+def Gfun0(t):
+    if t <= t0 or t >= T-t0:
+        return 0.0
+    else:
+        return np.sin(np.pi*(t-t0)/T)**2
+
+Gfun = np.vectorize(Gfun0)
+Efun = lambda t: Gfun(t) * np.sin(om*(t-t0))
 
 if figures:
     plt.figure()
-    t = np.linspace(0,t_final,200)
+    t = np.linspace(0,t_final,int(t_final/dt)+1)
     plt.plot(t,Efun(t))
     plt.title('Electric field')
     plt.xlabel('t')
@@ -163,6 +177,73 @@ if figures:
     plt.savefig(figname())
     plt.close()
 
+
+def render2d(wf, cmap_name = 'hsv'):
+    """ Render the wavefunction using a simple diffuse lightning model."""
+
+    alpha = 200
+    H = lambda x: 0.5 + 0.5 * np.tanh(alpha*x)
+
+    fft2 = np.fft.fft2
+    ifft2 = np.fft.ifft2
+    light = np.array([1, .25, 1.5])
+    light = light / np.linalg.norm(light)
+    height_scale = 3
+
+    psi = wf.psi
+    (nx,ny) = psi.shape
+
+    #phi = np.abs(psi)
+    ang = np.angle(psi) / (2*np.pi) + 0.5
+    #print(f'? angle in range [{np.min(ang)}, {np.max(ang)}]')
+    #phi = (np.arctan2(psi.imag,psi.real) + np.pi)/(2*np.pi)
+    cmap = get_cmap(cmap_name)
+    # image1 = each pixel colored according to phase angle
+    #colors = cmap(phi)[:,:,:3]
+    colors = cmap(ang)[:,:,:3]
+
+    rho = height_scale * np.abs(psi)
+    rho_x = -ifft2(wf.grid.kk[0] * fft2(rho)).imag
+    rho_y = -ifft2(wf.grid.kk[1] * fft2(rho)).imag
+    t1 = np.zeros((nx,ny,3))
+    t2 = np.zeros((nx,ny,3))
+    n1 = (1 + rho_x**2)**.5
+    n2 = (1 + rho_y**2)**.5
+    t1[:,:,0] = 1.0/n1
+    t1[:,:,2] = rho_x/n1
+    t2[:,:,1] = 1.0/n2
+    t2[:,:,2] = rho_y/n2
+    n = np.cross(t1,t2)
+
+    i = np.einsum('ijk,k->ij',n,light)
+    i = (i > 0) * i
+
+
+    sat = H(rho/np.max(rho)-0.001)
+
+    image = colors.copy()
+    white = np.ones((nx,ny,3))
+
+    for k in range(3):
+        image[:,:,k] = (sat * colors[:,:,k] + (1-sat) * white[:,:,k]) * i
+        #image[:,:,k] = sat * white[:,:,k]
+
+    return(image)
+
+
+def visualize(wf,heading):
+    """ Visualize a wavefunction. """
+
+    plt.figure()
+    #bm = render2d(wf)
+    bm = np.abs(wf.psi.T)
+    plt.imshow(bm, aspect='equal', cmap = 'jet', extent = [-L,L,-L,L], origin = 'lower')
+    plt.imshow(bm, aspect='equal', extent = [-L,L,-L,L], origin = 'lower')
+    plt.xlabel('x')
+    plt.ylabel('y')
+    plt.title(heading)
+    plt.savefig(figname())
+    plt.close()
 
 #
 # Compute ground state wavefunction
@@ -172,24 +253,23 @@ def compute_ground_state(L2,ng2,Tfun,Vfun):
     """ Compute ground state wavefunction on a suitable grid,
     and then extrapolate to the computationa grid. """
 
-    grid2 = FourierGrid([-L2,-L2,-L2],[L2,L2,L2],[ng2,ng2,ng2])
+    grid2 = FourierGrid([-L2,-L2],[L2,L2],[ng2,ng2])
     xx = grid2.xx
 
     ham = FourierHamiltonian(grid2, Tfun = Tfun, Vfun = Vfun)
 
     gs = GroundStateComputer(ham)
-    gs.setInitialGuess(np.exp(-(xx[0]**2 + xx[1]**2 + xx[2]**2)/2))
+    gs.setInitialGuess(np.exp(-(xx[0]**2 + xx[1]**2)/2))
 
     E = gs.invit(sigma = np.min(ham.V), tol=gs_tol)
 
     if figures:
+        visualize(gs.wf, f'Ground-state wavefunction, E = {E}')
+
         plt.figure()
-        plt.plot(grid2.x[0],gs.wf.density(0))
-        plt.plot(grid2.x[1],gs.wf.density(1)+.01)
-        plt.plot(grid2.x[2],gs.wf.density(2)+.02)
-        plt.legend(['rho0', 'rho1', 'rho2'])
-        plt.xlabel('x')
-        plt.title('densitites, vertically shifted for visiblity')
+        plt.imshow(ham.V, extent = [-L2, L2, -L2, L2], cmap = 'jet')
+        plt.title('Potential')
+        plt.colorbar()
         plt.savefig(figname())
         plt.close()
 
@@ -202,20 +282,6 @@ if verbose:
 psi0 = compute_ground_state(gs_L,gs_ng,Tfun,Vfun)
 
 
-
-def visualize(wf,heading):
-    """ Visualize the wavefunction. """
-
-    plt.figure()
-    plt.plot(grid.x[0],wf.density(0))
-    plt.plot(grid.x[1],wf.density(1)+.005)
-    #plt.plot(grid.x[2],wf.density(2)+.02)
-    plt.ylim([0,0.3])
-    plt.legend(['rho0', 'rho1', 'rho2'])
-    plt.xlabel('x')
-    plt.title(heading)
-    plt.savefig(figname())
-    plt.close()
 
 
 #
@@ -257,8 +323,8 @@ t_range = np.arange(0,t_final+dt,dt)
 #n_inspect = 100
 
 # Buffers for saving complete density and current histories
-dens_hist = np.zeros((len(grid.x[0]),len(t_range), 3), dtype=float)
-curr_hist = np.zeros((len(grid.x[0]),len(t_range), 3), dtype=float)
+dens_hist = np.zeros((len(grid.x[0]),len(t_range), 2), dtype=float)
+curr_hist = np.zeros((len(grid.x[0]),len(t_range), 2), dtype=float)
 energy_hist = np.zeros(len(t_range), dtype=float)
 
 # si = index for saves
@@ -284,7 +350,7 @@ with h5py.File(fname,'w') as h5file:
         t = t_range[i]
 
         # Compute currents and densities
-        for n in range(3):
+        for n in range(2):
             dens_hist[:,i,n] = wf.density(n)
             curr_hist[:,i,n] = wf.current(n)
         #h5file.create_dataset(f'/densities/{i}/rho', data = dens_hist[:,i,:],compression='gzip')
@@ -315,21 +381,21 @@ with h5py.File(fname,'w') as h5file:
 # ## Final visualization of densities as function of time
 #
 
-if figures:
-    plt.figure(figsize=(12,8), dpi= 100)
-    plt.imshow(dens_hist[:,:,0],aspect='auto',extent=[0,t_final,-L,L],cmap='jet')
-    plt.colorbar()
-    plt.xlabel('t')
-    plt.ylabel('x')
-    plt.title('Density of pseudoparticle 0 (H nucleus)')
-    plt.savefig(figname())
-    plt.figure(figsize=(12,8), dpi= 100)
-    plt.imshow(dens_hist[:,:,1],aspect='auto',extent=[0,t_final,-L,L],cmap='jet')
-    plt.colorbar()
-    plt.xlabel('t')
-    plt.ylabel('x')
-    plt.title('Density of pseudoparticles 1 and 2 (electrons)')
-    plt.savefig(figname())
+# if figures:
+#     plt.figure(figsize=(12,8), dpi= 100)
+#     plt.imshow(dens_hist[:,:,0],aspect='auto',extent=[0,t_final,-L,L],cmap='jet')
+#     plt.colorbar()
+#     plt.xlabel('t')
+#     plt.ylabel('x')
+#     plt.title('Density of pseudoparticle 0 (H nucleus)')
+#     plt.savefig(figname())
+#     plt.figure(figsize=(12,8), dpi= 100)
+#     plt.imshow(dens_hist[:,:,1],aspect='auto',extent=[0,t_final,-L,L],cmap='jet')
+#     plt.colorbar()
+#     plt.xlabel('t')
+#     plt.ylabel('x')
+#     plt.title('Density of pseudoparticles 1 and 2 (electrons)')
+#     plt.savefig(figname())
 
 if verbose:
     print('Done.')

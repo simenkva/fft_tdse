@@ -1,0 +1,50 @@
+# verbose: print some extra information while running.
+verbose: True
+
+# If true, figures will be generated and saved to PNG files
+figures: True
+
+# Filename prefix for saved data.
+# Make sure any path used exists.
+sim_name: out/results
+
+# Grid parameters. n = number of
+# points in each direction, should be power of 2.
+# 2L = box size, i.e., domain is [-L,L]**3.
+grid:
+  n: 512
+  L: 20
+  n_gs: 128
+  L_gs: 5
+  gs_tol: 1.0e-7
+
+# Set up mass and charge of single particle in 2D potential
+particles:
+  q: 1.0
+  m: 1224.0
+
+# Set up model potential.
+potential:
+#  U: 'lambda x, y: (x**2 + y**2 + 0.1)**(-0.5)' 
+  U: 'lambda x, y: morse((x**2 + y**2)**(.5), a = 1.4556, D = 0.17449, r_e = 1.4011)'
+
+# Set up laser parameters.
+# The pulse function is:
+# Efun = lambda t: E0*np.exp(-(t-T)**2/tau**2) * np.cos(om*t)
+pulse:
+  #E0: 0.01
+  #t0 : 10.0
+  #om: 0.482681
+  #T: 30
+
+# Set up integration parameters.
+# t_final: end of simulation time interval
+# dt: time step
+# n_inspect: number of inspections of densities over
+# the simulation interval
+# n_save: number of full wavefunction saves.
+integration:
+  t_final: 1500.0
+  dt: 0.1
+  n_inspect: 3000
+  n_save: 10
