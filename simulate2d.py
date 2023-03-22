@@ -5,19 +5,29 @@
 
 import numpy as np
 from fft_tdse import *
+from potentials import *
 from psiviz import *
 import matplotlib
 matplotlib.use('AGG')
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import h5py
-
+import argparse
 
 #
-# Morse potential
+# Command line arguments
 #
-def morse(r, a = 1.0, D = 1.0, r_e = 1.0):
-    return D * (1.0 - np.exp(-a * (r-r_e)))**2 - D
+parser = argparse.ArgumentParser(
+                    prog = 'simulate2d.py',
+                    description = '2d time-dependent Schrödinger equation solver',
+                    epilog = '')
+
+parser.add_argument('-c', '--config', default = 'config_2d.yml', required=False, help = 'YAML config file to use.')
+
+args = parser.parse_args()
+
+config_filename = args.config
+
 
 #
 # figindex is a global counter for
@@ -35,7 +45,7 @@ def figname():
 #
 
 import yaml
-config = yaml.safe_load(open("config_2d.yml"))
+config = yaml.safe_load(open(config_filename))
 
 try:
     verbose = config['verbose']
@@ -123,7 +133,7 @@ try:
     T = config['pulse']['T']
     t0 = config['pulse']['t0']
 except:
-    E0, om, T, t0 = 0.05, 0.482681, 2*np.pi*100.0/0.482681, 0
+    E0, om, T, t0 = 0.5, 0.482681, 2*np.pi*100.0/0.482681, 0
 
 
 if verbose:
@@ -159,13 +169,13 @@ grid = FourierGrid([-L,-L], [L,L], [ng, ng])
 #Efun = lambda t: E0*np.exp(-(t-T)**2/tau**2) * np.cos(om*t)
 
 def Gfun0(t):
-    if t <= t0 or t >= T-t0:
+    if t <= t0 or t >= T+t0:
         return 0.0
     else:
         return np.sin(np.pi*(t-t0)/T)**2
 
 Gfun = np.vectorize(Gfun0)
-Efun = lambda t: Gfun(t) * np.sin(om*(t-t0))
+Efun = lambda t: E0 * Gfun(t) * np.cos(om*(t-(t0 + T/2)))
 
 if figures:
     plt.figure()
@@ -178,71 +188,25 @@ if figures:
     plt.close()
 
 
-def render2d(wf, cmap_name = 'hsv'):
-    """ Render the wavefunction using a simple diffuse lightning model."""
-
-    alpha = 200
-    H = lambda x: 0.5 + 0.5 * np.tanh(alpha*x)
-
-    fft2 = np.fft.fft2
-    ifft2 = np.fft.ifft2
-    light = np.array([1, .25, 1.5])
-    light = light / np.linalg.norm(light)
-    height_scale = 3
-
-    psi = wf.psi
-    (nx,ny) = psi.shape
-
-    #phi = np.abs(psi)
-    ang = np.angle(psi) / (2*np.pi) + 0.5
-    #print(f'? angle in range [{np.min(ang)}, {np.max(ang)}]')
-    #phi = (np.arctan2(psi.imag,psi.real) + np.pi)/(2*np.pi)
-    cmap = get_cmap(cmap_name)
-    # image1 = each pixel colored according to phase angle
-    #colors = cmap(phi)[:,:,:3]
-    colors = cmap(ang)[:,:,:3]
-
-    rho = height_scale * np.abs(psi)
-    rho_x = -ifft2(wf.grid.kk[0] * fft2(rho)).imag
-    rho_y = -ifft2(wf.grid.kk[1] * fft2(rho)).imag
-    t1 = np.zeros((nx,ny,3))
-    t2 = np.zeros((nx,ny,3))
-    n1 = (1 + rho_x**2)**.5
-    n2 = (1 + rho_y**2)**.5
-    t1[:,:,0] = 1.0/n1
-    t1[:,:,2] = rho_x/n1
-    t2[:,:,1] = 1.0/n2
-    t2[:,:,2] = rho_y/n2
-    n = np.cross(t1,t2)
-
-    i = np.einsum('ijk,k->ij',n,light)
-    i = (i > 0) * i
 
 
-    sat = H(rho/np.max(rho)-0.001)
-
-    image = colors.copy()
-    white = np.ones((nx,ny,3))
-
-    for k in range(3):
-        image[:,:,k] = (sat * colors[:,:,k] + (1-sat) * white[:,:,k]) * i
-        #image[:,:,k] = sat * white[:,:,k]
-
-    return(image)
-
-
-def visualize(wf,heading):
+def visualize(wf,heading, L = L):
     """ Visualize a wavefunction. """
 
     plt.figure()
+    
+    m = np.abs(wf.psi).max()
+    bm = mag_vis(wf.psi.T, mag_map=lambda r: np.sqrt(r/m))
+    plt.imshow(bm, aspect='equal', cmap = colorcet.cm['bgy'], extent = [-L,L,-L,L], origin = 'lower')
+    plt.colorbar()
+
     #bm = render2d(wf)
-    bm = np.abs(wf.psi.T)
-    plt.imshow(bm, aspect='equal', cmap = 'jet', extent = [-L,L,-L,L], origin = 'lower')
-    plt.imshow(bm, aspect='equal', extent = [-L,L,-L,L], origin = 'lower')
+    #plt.imshow(bm.T, aspect='equal', extent = [-L,L,-L,L], origin = 'lower')
+    
     plt.xlabel('x')
     plt.ylabel('y')
     plt.title(heading)
-    plt.savefig(figname())
+    plt.savefig(figname(), dpi = 100)
     plt.close()
 
 #
@@ -264,7 +228,7 @@ def compute_ground_state(L2,ng2,Tfun,Vfun):
     E = gs.invit(sigma = np.min(ham.V), tol=gs_tol)
 
     if figures:
-        visualize(gs.wf, f'Ground-state wavefunction, E = {E}')
+        visualize(gs.wf, f'Ground-state wavefunction, E = {E}', L = L2)
 
         plt.figure()
         plt.imshow(ham.V, extent = [-L2, L2, -L2, L2], cmap = 'jet')
@@ -332,7 +296,8 @@ si = 0
 
 # Create a file name
 from datetime import datetime
-fname = f'{sim_name}_{datetime.now().strftime("%d%m%Y_%H%M")}.h5'
+#fname = f'{sim_name}_{datetime.now().strftime("%d%m%Y_%H%M")}.h5'
+fname = f'{sim_name}.hdf5'
 
 # Open an h5 file
 with h5py.File(fname,'w') as h5file:

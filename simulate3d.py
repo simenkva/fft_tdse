@@ -12,6 +12,7 @@ from tqdm import tqdm
 import h5py
 
 
+
 #
 # figindex is a global counter for
 # figures being saved to disk
