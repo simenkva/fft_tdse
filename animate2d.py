@@ -12,17 +12,21 @@ from mpl_toolkits.axes_grid1.inset_locator import InsetPosition
 from psiviz import phase_mag_vis, mag_vis
 from scipy.interpolate import RegularGridInterpolator, interp2d
 
+vis_types = ['magnitude', 'complex']
 
 my_hsv_to_rgb = lambda h,s,v: np.array(np.vectorize(hsv_to_rgb)(h,s,v))
 
 folder = 'out'
-sim_name = folder + '/coulomb'
+casename = 'sim_0_1'
+
+sim_name = folder + '/' + casename
 fname = f'{sim_name}.hdf5'
-moviename = 'coulomb_movie_mag'
 
-vis_types = ['magnitude', 'complex']
 
-vis_type = 'magnitude'
+vis_type = 'complex'
+
+moviename = casename + '_movie_' + vis_type
+
 
 figsize = 5
 imgsize = 1024
