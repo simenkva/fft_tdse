@@ -13,27 +13,29 @@ sim_name: out/sim_2_0
 # 2L = box size, i.e., domain is [-L,L]**3.
 grid:
   n: 1024
-  L: 20
-  n_gs: 128
-  L_gs: 5
+  L: 25
+  n_gs: 1024
+  L_gs: 25
   gs_tol: 1.0e-7
 
 # Set up mass and charge of single particle in 2D potential
 particles:
-  q: 1.0
-  m: 1224.0
+#  q: 1.0
+  m: 1605.634307
 
 # Set up model potential.
 potential:
 #  U: 'lambda x, y: (x**2 + y**2 + 0.1)**(-0.5)' 
-  U: 'lambda x, y: morse((x**2 + y**2)**(.5), a = 1.4556, D = 0.17449, r_e = 1.4011)'
+#  U: 'lambda x, y: morse((x**2 + y**2)**(.5), a = 1.4556, D = 0.17449, r_e = 1.4011)'
+   U: 'lih'
 
 # Set up laser parameters.
 pulse:
-  E0: 2.0
-  t0 : 0.0
-  om: 0 #0.31416
-  T: 20.0
+  X: 'use external'
+#  E0: 2.0
+#  t0 : 0.0
+#  om: 0 #0.31416
+#  T: 20.0
 
 # Set up integration parameters.
 # t_final: end of simulation time interval
@@ -42,7 +44,7 @@ pulse:
 # the simulation interval
 # n_save: number of full wavefunction saves.
 integration:
-  t_final: 1000.0
-  dt: 0.1
-  n_inspect: 10
+  t_final: 51120
+  dt: 20
+  n_inspect: 50
   n_save: 1000

@@ -17,7 +17,7 @@ vis_types = ['magnitude', 'complex']
 my_hsv_to_rgb = lambda h,s,v: np.array(np.vectorize(hsv_to_rgb)(h,s,v))
 
 folder = 'out'
-casename = 'sim_0_1'
+casename = 'sim_2_0'
 
 sim_name = folder + '/' + casename
 fname = f'{sim_name}.hdf5'

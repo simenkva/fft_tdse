@@ -3,8 +3,8 @@ from matplotlib.cm import get_cmap
 import hsluv
 import colorcet
 
-#phase_cmap = colorcet.cm['cyclic_mygbm_30_95_c78']
-phase_cmap = colorcet.cm['cyclic_ymcgy_60_90_c67']
+phase_cmap = colorcet.cm['cyclic_mygbm_30_95_c78']
+#phase_cmap = colorcet.cm['cyclic_ymcgy_60_90_c67']
 #phase_cmap = colorcet.cm['cyclic_wrwbw_40_90_c42']
 dens_cmap = colorcet.cm['bgy']
 
