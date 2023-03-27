@@ -305,7 +305,7 @@ class FourierHamiltonian:
         #n1 = np.sum(wf.phi.conj() * wf.phi)
         #n2 = np.sum(wf.psi.conj() * wf.psi)
 
-        return self.grid.dtau*(np.sum(wf.phi.conj() * self.T * wf.phi) + np.sum(wf.psi.conj() * (self.V + Efield * self.D) * wf.psi))
+        return self.grid.dtau*(np.sum(wf.phi.conj() * self.T * wf.phi) + np.sum(wf.psi.conj() * (self.V - Efield * self.D) * wf.psi))
 
 
 class Propagator:
@@ -326,7 +326,7 @@ class Propagator:
         self.dt = dt
         self.Tprop = np.exp(-0.5j*dt*self.ham.T)
         self.Vprop = np.exp(-1j*dt*self.ham.V)
-        self.Eprop = lambda t: np.exp(-1j*dt*self.ham.Efun(t)*self.ham.D)
+        self.Eprop = lambda t: np.exp(1j*dt*self.ham.Efun(t)*self.ham.D)
 
     def strang(self,wf,t,will_do_another_step = True):
         """ Perform a step of the Strang splitting propagator.
@@ -380,9 +380,14 @@ class GroundStateComputer:
 
         A = LinearOperator((n,n), matvec=lambda x:self.Apsi_vec(x,sigma=sigma), dtype=complex)
 
+        converged = False
         delta = 1000
         psi = self.wf.psi.reshape((n,))
         psi = psi/np.linalg.norm(psi)
+        Hpsi = self.ham.apply(psi.reshape(shape)).reshape((n,))
+        E = np.inner(psi,Hpsi)
+        resid = np.linalg.norm(Hpsi - E*psi)
+        print(f'Initial guess: resid = {resid}, E = {E.real}')
         for k in range(maxit):
             psi_prev = psi
             psi, info = cg(A, psi, x0=psi, tol=np.min([cgtol,delta]))
@@ -391,13 +396,14 @@ class GroundStateComputer:
             delta = np.linalg.norm(psi-psi_prev)
             Hpsi = self.ham.apply(psi.reshape(shape)).reshape((n,))
             E = np.inner(psi,Hpsi)
-
             resid = np.linalg.norm(Hpsi - E*psi)
             print(f'Iteration {k}, delta = {delta}, resid = {resid}, E = {E.real}')
-            if delta < 10*tol:
-                print('Iterations terminated successfully.')
+            if delta < tol:
+                print('Inverse iterations terminated successfully.')
+                converged = True
                 break
 
+        assert converged, f"Inverse iterations failed to converge in {maxit} iterations!"
         self.wf.setPsi(psi.reshape(shape), set_dual=True,normalize=True)
         self.E = E.real
 

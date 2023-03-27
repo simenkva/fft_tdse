@@ -1,5 +1,9 @@
 import numpy as np
 from scipy.interpolate import CubicSpline
+import matplotlib.pyplot as plt
+from mpl_toolkits import mplot3d
+from pulse import setup_pulse
+import subprocess
 
 class LiH_Data:
     def __init__(self, prepend=False, append=False, keep4_25=True):
@@ -222,8 +226,60 @@ class LiH_Dipole:
         fun = [self._low, self.cs, self._high]
         return np.piecewise(R, cond, fun)
 
+
+def visualize_pot(t0, t1, n, animate=False, folder='out', max_show=11):
+    V = LiH_Potential(fitted=False)
+    D = LiH_Dipole(fitted=False)
+    E = setup_pulse()
+    Veff = lambda xx, yy, tt: V(np.sqrt(xx**2 + yy**2)) - D(xx, yy) * E(t)
+
+    x = np.linspace(-12.5, 12.5, 500)
+    y = np.linspace(-12.5, 12.5, 500)
+    X, Y = np.meshgrid(x, y)
+
+    vmin = -50
+    vmax = 50
+    scale = 1e3
+
+    if animate: 
+        animation_file = f'{folder}/Veff_animation.mp4'
+        framelist_file = f'{folder}/Veff_framelist.txt' 
+        f = open(framelist_file, 'w')
+
+    t_range = np.linspace(t0, t1, num=n)
+    for i, t in enumerate(t_range):
+        Z = Veff(X, Y, t) * scale
+        fig = plt.figure()
+        ax = plt.axes(projection='3d')
+        my_cmap = plt.get_cmap('jet')
+        surf = ax.plot_surface(X, Y, Z, cmap=my_cmap, vmin=vmin, vmax=vmax, edgecolor=None, linewidth=0, antialiased=False)
+        fig.colorbar(surf, ax=ax, shrink=0.7, aspect=7)
+        ax.set_title(f"t={t:.6f} E={E(t):.6f}")
+        ax.set_zlim(vmin, vmax)
+        ax.set_xlabel('x')
+        ax.set_ylabel('y')
+
+        if animate:
+            framename = f'Veff_{i:05d}.png'
+            filename = f'{folder}/{framename}'
+            plt.savefig(filename, dpi = 100)
+            print(f"file {framename}", file=f)
+            print(f"Veff frame {i:05d} generated")
+        else:
+            plt.show()
+        plt.close(fig)
+
+        if not animate and i+1 > max_show:
+            print("Max number of figs reached. Stopping now.")
+            break
+
+    if animate:
+        f.close()
+        cmd = f'ffmpeg -y -r 30 -f concat -i {framelist_file} -vcodec libx264 -crf 25  -pix_fmt yuv420p {animation_file}'
+        subprocess.run(cmd, shell=True)
+
+
 if __name__ == '__main__':
-    import matplotlib.pyplot as plt
     import scipy.constants as const
 
     KEEP4_25 = False
@@ -283,3 +339,5 @@ if __name__ == '__main__':
 
     plt.close(fig1)
     plt.close(fig2)
+
+    visualize_pot(0, 51120, 1001, animate=True)
