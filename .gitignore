@@ -5,5 +5,4 @@ __pycache__
 *.h5
 *.mp4
 dev_notebooks
-data
 out*
