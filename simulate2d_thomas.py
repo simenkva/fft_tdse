@@ -70,6 +70,7 @@ if verbose:
     print(f'Figures will be saved to disk: {figures}')
 
 
+equilibrium_distance = 0
 try:
     q = config['particles']['q']
 except:
@@ -81,7 +82,8 @@ except:
 try:
     temp = config['potential']['U']
     if temp == 'lih':
-        Ufun, Dipfun = get_lih_potentials()
+        Ufun, Dipfun = get_lih_potentials(verbose=verbose)
+        equilibrium_distance = Ufun.get_Re()
         DIST = True
     else:
         Ufun = eval(temp)
@@ -164,12 +166,12 @@ if verbose:
     print(f'Number of wavefunction saves: {n_save}')
     print(f'Number of density inspections: {n_inspect}')
     if use_external:
-        Eext = setup_pulse(verbose=verbose)
+        Eext = setup_pulse(n=10, verbose=verbose)
     else:
         print(f'Laser parameters E0, om, t0, T = {E0, om, t0, T}')
 else:
     if use_external:
-        Eext = setup_pulse()
+        Eext = setup_pulse(n=10, verbose=verbose)
 
 
 
@@ -236,7 +238,7 @@ def visualize(wf,heading, L = L):
 # Compute ground state wavefunction
 #
 
-def compute_ground_state(L2,ng2,Tfun,Vfun):
+def compute_ground_state(L2,ng2,Tfun,Vfun,Re=0.):
     """ Compute ground state wavefunction on a suitable grid,
     and then extrapolate to the computationa grid. """
 
@@ -246,7 +248,7 @@ def compute_ground_state(L2,ng2,Tfun,Vfun):
     ham = FourierHamiltonian(grid2, Tfun = Tfun, Vfun = Vfun)
 
     gs = GroundStateComputer(ham)
-    gs.setInitialGuess(np.exp(-(np.sqrt(xx[0]**2 + xx[1]**2) - 4.825)**2)/2)
+    gs.setInitialGuess(np.exp(-(np.sqrt(xx[0]**2 + xx[1]**2) - Re)**2)/2)
 
     E = gs.invit(sigma = np.min(ham.V), tol=gs_tol)
 
@@ -260,7 +262,7 @@ def compute_ground_state(L2,ng2,Tfun,Vfun):
         plt.close()
 
         plt.figure()
-        plt.imshow(ham.D, extent = [-L2, L2, L2, L2], cmap = 'jet')
+        plt.imshow(ham.D, extent = [-L2, L2, -L2, L2], cmap = 'jet')
         plt.title('Dipole')
         plt.colorbar()
         plt.savefig(figname())
@@ -273,9 +275,7 @@ def compute_ground_state(L2,ng2,Tfun,Vfun):
 # Compute ground state on a smaller grid, then extrapolate.
 if verbose:
     print(f'Computing ground-state wavefunction by inverse iterations ...')
-psi0 = compute_ground_state(gs_L,gs_ng,Tfun,Vfun)
-
-
+psi0 = compute_ground_state(gs_L,gs_ng,Tfun,Vfun,Re=equilibrium_distance)
 
 
 #
@@ -293,6 +293,12 @@ if figures:
 
 # Set up Hamiltonian
 ham = FourierHamiltonian(grid, Tfun=Tfun, Vfun = Vfun, Dfun = Dfun, Efun=Efun)
+
+# set up operators (for expectation values)
+theta_ = Operator(grid, theta)
+theta2_ = Operator(grid, theta2)
+cos_theta = Operator(grid, cos_theta)
+cos2_theta = Operator(grid, cos2_theta)
 
 # Create a Strang splitting propagator
 prop = Propagator(ham, dt)
@@ -315,6 +321,10 @@ n_steps = len(t_range)
 dens_hist = np.zeros((len(grid.x[0]),len(t_range), 2), dtype=float)
 curr_hist = np.zeros((len(grid.x[0]),len(t_range), 2), dtype=float)
 energy_hist = np.zeros(len(t_range), dtype=float)
+theta_hist = np.zeros(len(t_range), dtype=float)
+theta2_hist = np.zeros(len(t_range), dtype=float)
+cos_hist = np.zeros(len(t_range), dtype=float)
+cos2_hist = np.zeros(len(t_range), dtype=float)
 
 # si = index for saves
 si = -1
@@ -353,26 +363,40 @@ with h5py.File(fname,'w') as h5file:
         #h5file.create_dataset(f'/densities/{i}/rho', data = dens_hist[:,i,:],compression='gzip')
         #h5file.create_dataset(f'/currents/{i}/jp', data = curr_hist[:,i,:],compression='gzip')
         energy_hist[i] = ham.energy(wf, Efun(t)).real
+        theta_hist[i] = theta_.expectation_value(wf).real
+        theta2_hist[i] = theta2_.expectation_value(wf).real
+        cos_hist[i] = cos_theta.expectation_value(wf).real
+        cos2_hist[i] = cos2_theta.expectation_value(wf).real
 
         # Save wavefunction
         #if i % int(t_final/n_save/dt) == 0:
         if i % f_save == 0 or i == n_steps:
             si += 1
             if verbose:
-                print(f"Save number {si}: step {i}, t={t_range[i]}")
+                print(f"Save number {si}: step {i}, t={t}")
+                print(f"   field =  {Efun(t)}")
+                print(f"   energy = {energy_hist[i]}")
+                print(f"   theta =  {theta_hist[i]}")
+                print(f"   theta2 = {theta2_hist[i]}")
+                print(f"   cos =    {cos_hist[i]}")
+                print(f"   cos2 =   {cos2_hist[i]}")
             h5file.create_dataset(f'/wavefunctions/{si}/psi', data=wf.psi, compression='gzip')
             h5file.create_dataset(f'/wavefunctions/{si}/t', data=t)
 
         # Visualize in real time
         if figures:
             if i % f_inspect == 0 or i == n_steps:
-                visualize(wf,f't = {t:.2f}, E = {Efun(t):.6f}, energy = {energy_hist[i]:.4f}')
+                visualize(wf,f't = {t:.2f}, E = {Efun(t):.6f}, energy = {energy_hist[i]:.4f} cos2 = {cos2_hist[i]:.2f}')
 
         # Time step
         prop.strang(wf,t, will_do_another_step=False) # we need the updating of the fft for correct observables
 
     # Save energy history, density, and current
     h5file.create_dataset('/energy', data=energy_hist)
+    h5file.create_dataset('/theta', data=theta_hist)
+    h5file.create_dataset('/theta2', data=theta2_hist)
+    h5file.create_dataset('/cos', data=cos_hist)
+    h5file.create_dataset('/cos2', data=cos2_hist)
     h5file.create_dataset('/density', data=dens_hist,compression='gzip')
     h5file.create_dataset('/current', data=curr_hist,compression='gzip')
 

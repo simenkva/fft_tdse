@@ -9,10 +9,10 @@ import subprocess
 from colorspacious import cspace_convert
 from colorsys import hsv_to_rgb
 from mpl_toolkits.axes_grid1.inset_locator import InsetPosition
-from psiviz import phase_mag_vis, mag_vis
+from psiviz import phase_mag_vis, mag_vis, dens_vis
 from scipy.interpolate import RegularGridInterpolator, interp2d
 
-vis_types = ['magnitude', 'complex']
+vis_types = ['magnitude', 'complex', 'density']
 
 my_hsv_to_rgb = lambda h,s,v: np.array(np.vectorize(hsv_to_rgb)(h,s,v))
 
@@ -23,7 +23,7 @@ sim_name = folder + '/' + casename
 fname = f'{sim_name}.hdf5'
 
 
-vis_type = 'complex'
+vis_type = 'density'
 
 moviename = casename + '_movie_' + vis_type
 
@@ -92,7 +92,10 @@ with h5py.File(fname,'r') as h5file:
         energy = energy_vec[t_idx]
 
         if i == 0:
-            max_dens = np.abs(psi).max() * dens_factor
+            if vis_type == 'density':
+                max_dens = (np.abs(psi)**2).max() * dens_factor
+            else:
+                max_dens = np.abs(psi).max() * dens_factor
             print(f'max_dens set to {max_dens}.')
 
         interpr = interp2d(x_range, y_range, psi.real, kind='cubic')
@@ -118,16 +121,20 @@ with h5py.File(fname,'r') as h5file:
 
                 return temp
             bmp = phase_mag_vis(psii.T, mag_map=mag_map)
-        if vis_type == 'magnitude':    
-
+        elif vis_type == 'magnitude':    
             def mag_map(r):
                 temp = r / max_dens
 
                 return temp
             bmp = mag_vis(psii.T, mag_map=mag_map)
+        elif vis_type == 'density':
+            def mag_map(r):
+                temp = r / max_dens
 
-        if vis_type not in vis_types:
-            raise ValueError
+                return temp
+            bmp = dens_vis(psii.T, mag_map=mag_map)
+        else:
+            raise ValueError(f"Unknown vis_type: {vis_type}")
 
         # Compute estimate of radial probability density by 
         # numerical integration over thin annuli.

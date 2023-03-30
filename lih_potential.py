@@ -1,206 +1,141 @@
 import numpy as np
+from scipy.optimize import curve_fit
 from scipy.interpolate import CubicSpline
-import matplotlib.pyplot as plt
 from mpl_toolkits import mplot3d
+import matplotlib.pyplot as plt
+import scipy.constants as const
 from pulse import setup_pulse
 import subprocess
 
-class LiH_Data:
-    def __init__(self, prepend=False, append=False, keep4_25=True):
-        self.source = "Partridge et al., J. Chem. Phys. 75 2299 (1981)"
-        if keep4_25:
-            comp_raw = np.array([[1.750, -7.779181, -1.9182],
-                                 [2.000, -7.836250, -1.9955],
-                                 [2.250, -7.872266, -2.0403],
-                                 [2.500, -7.894965, -2.0525],
-                                 [2.750, -7.909183, -2.0409],
-                                 [2.875, -7.914133, -2.0277],
-                                 [3.000, -7.918024, -2.0099],
-                                 [3.125, -7.921076, -1.9881],
-                                 [3.250, -7.923461, -1.9610],
-                                 [3.500, -7.926749, -1.8936],
-                                 [3.750, -7.928686, -1.8076],
-                                 [3.875, -7.929326, -1.7576],
-                                 [4.000, -7.929807, -1.7025],
-                                 [4.125, -7.930260, -1.6422],
-                                 [4.250, -7.930422, -1.5770],
-                                 [4.375, -7.930606, -1.5078],
-                                 [4.500, -7.930730, -1.4309],
-                                 [4.750, -7.930843, -1.2575],
-                                 [4.900, -7.930840, -1.1396],
-                                 [5.000, -7.930792, -1.0542],
-                                 [5.500, -7.930356, -0.5403],
-                                 [5.750, -7.929927, -0.2190],
-                                 [6.000, -7.929314,  0.1495],
-                                 [6.500, -7.927416,  1.0213],
-                                 [7.000, -7.924533,  1.9896],
-                                 [7.500, -7.920767,  2.8948],
-                                 [8.000, -7.916461,  3.5979],
-                                 [8.500, -7.911952,  4.0292],
-                                 [9.000, -7.907657,  4.1951],
-                                 [9.500, -7.903746,  4.0784],
-                                 [10.00, -7.900372,  3.6761],
-                                 [10.50, -7.897636,  3.0364],
-                                 [11.00, -7.895576,  2.2929],
-                                 [12.00, -7.893153,  1.0525],
-                                 [13.50, -7.891901,  0.2677],
-                                 [15.00, -7.891586,  0.0705],
-                                 [17.50, -7.891443,  0.0125],
-                                 [20.00, -7.891434,  0.0031],
-                                 [22.50, -7.891428,  0.0004],
-                                 [25.00, -7.891426,  0.000469]])
+DEBYE = 1e-21 / const.c  # definition in C m
+DEBYE /= const.e * const.physical_constants['atomic unit of length'][0]
+
+class SRPot:
+    def __init__(self, R1, E2, E0, deltaR):
+        self.R1 = R1
+        self.G1 = (E2 - E0)/deltaR
+
+    def a(self, b):
+        return -self.G1*np.exp(b*self.R1)/b
+
+    def __call__(self, R, b, c):
+        return self.a(b) * np.exp(-b * R) + c
+
+def parse_Vdata(fname, withAdiabaticCorrection=True):
+    if withAdiabaticCorrection:
+        indx = 13
+    else:
+        indx = 1
+    with open(fname, 'r') as f:
+        lines = f.readlines()
+        R = np.array([float(line.split()[0]) for line in lines[6:]])
+        V = np.array([float(line.split()[indx]) for line in lines[6:]])
+    return R, V
+
+def parse_Ddata(fname):
+    with open(fname, 'r') as f:
+        lines = f.readlines()
+        R = np.array([float(line.split()[0]) for line in lines])
+        D = np.array([float(line.split()[1]) for line in lines])
+    return R, D
+
+class LiH_Potential:
+    def __init__(self, withAdiabaticCorrection=True, zero_point='dissociation'):
+        self.source = "Tung, Pavanello, Adamowicz; J. Chem. Phys. 134, 064117 (2011). DOI:10.1063/1.3554211"
+        if withAdiabaticCorrection:
+              self.source + " (BO with adiabatic correction)"
         else:
-            comp_raw = np.array([[1.750, -7.779181, -1.9182],
-                                 [2.000, -7.836250, -1.9955],
-                                 [2.250, -7.872266, -2.0403],
-                                 [2.500, -7.894965, -2.0525],
-                                 [2.750, -7.909183, -2.0409],
-                                 [2.875, -7.914133, -2.0277],
-                                 [3.000, -7.918024, -2.0099],
-                                 [3.125, -7.921076, -1.9881],
-                                 [3.250, -7.923461, -1.9610],
-                                 [3.500, -7.926749, -1.8936],
-                                 [3.750, -7.928686, -1.8076],
-                                 [3.875, -7.929326, -1.7576],
-                                 [4.000, -7.929807, -1.7025],
-                                 [4.125, -7.930260, -1.6422],
-                                 [4.375, -7.930606, -1.5078],
-                                 [4.500, -7.930730, -1.4309],
-                                 [4.750, -7.930843, -1.2575],
-                                 [4.900, -7.930840, -1.1396],
-                                 [5.000, -7.930792, -1.0542],
-                                 [5.500, -7.930356, -0.5403],
-                                 [5.750, -7.929927, -0.2190],
-                                 [6.000, -7.929314,  0.1495],
-                                 [6.500, -7.927416,  1.0213],
-                                 [7.000, -7.924533,  1.9896],
-                                 [7.500, -7.920767,  2.8948],
-                                 [8.000, -7.916461,  3.5979],
-                                 [8.500, -7.911952,  4.0292],
-                                 [9.000, -7.907657,  4.1951],
-                                 [9.500, -7.903746,  4.0784],
-                                 [10.00, -7.900372,  3.6761],
-                                 [10.50, -7.897636,  3.0364],
-                                 [11.00, -7.895576,  2.2929],
-                                 [12.00, -7.893153,  1.0525],
-                                 [13.50, -7.891901,  0.2677],
-                                 [15.00, -7.891586,  0.0705],
-                                 [17.50, -7.891443,  0.0125],
-                                 [20.00, -7.891434,  0.0031],
-                                 [22.50, -7.891428,  0.0004],
-                                 [25.00, -7.891426,  0.000469]])
-        if prepend:
-            x = np.linspace(0, 1.75, num=int(4*1.75 + 1), endpoint=False)
-            e = 2.1125 * np.exp(-1.5051 * x) - 7.9308514
-            d = -1.91826
-            gen_low = np.array([[x[i], e[i], d] for i in range(x.shape[0])])
-            tmp = np.concatenate((gen_low, comp_raw), axis=0)
+              self.source + " (BO without adiabatic correction)"
+        self.Rdata, self.Vdata = parse_Vdata("data/lih_potential_adamowicz.txt", withAdiabaticCorrection=withAdiabaticCorrection)
+        self._setupSR(self.Rdata[:3], self.Vdata[:3])
+        if zero_point == 'dissociation':
+            self.Voo = self.Vdata[-1]
         else:
-            tmp = comp_raw
-        if append:
-            x = np.linspace(27.5, 50.0, num=int(4*(50.0-27.5) + 1))
-            e = -147.9/x**6 - 20700/x**8 - 7.89142584
-            d = 0.000469
-            gen_high = np.array([[x[i], e[i], d] for i in range(x.shape[0])])
-            self.raw = np.concatenate((tmp, gen_high), axis=0)
-        else:
-            self.raw = tmp
+            self.Voo = 0
+        self.cs = CubicSpline(self.Rdata, self.Vdata)
 
     def get_source(self):
         return self.source
 
     def get_R(self):
-        N = self.raw.shape[0]
-        res = np.array([self.raw[i, 0] for i in range(N)])
-        return res
+        return self.Rdata
 
     def get_E(self):
-        N = self.raw.shape[0]
-        res = np.array([self.raw[i, 1] for i in range(N)])
-        return res
+        return self.Vdata
 
-    def get_d(self):
-        N = self.raw.shape[0]
-        res = np.array([self.raw[i, 2] for i in range(N)])
-        return res
+    def get_Re(self, n=200001):
+        Re_approx = self.Rdata[np.argmin(self.Vdata)]
+        Rmin = Re_approx - 0.1
+        Rmax = Re_approx + 0.1
+        R = np.linspace(Rmin, Rmax, num=n)
+        V = self.__call__(R)
+        return R[np.argmin(V)]
 
-class LiH_Potential:
-    def __init__(self, zero_point='dissociation', fitted=False, keep4_25=True):
-        if fitted:
-            self.Re = 4.510915722494084
-            self.De = 0.03956542973471824
-            self.a = 0.7124920885811191
-            self.b = 0.21876029990323365
-            self.c = 0.060226371736622375
-            self.d = -1.0084971503460642e-05
-            self.e = -0.0017872616361749325
-            self.f = -0.00015132930379472076
-            self.g = 2.303765617402607e-05
-            if zero_point.lower() == 'dissociation':
-                self.h = 0
-            else:
-                self.h = -7.891391513847319
-            self.pot = self._fitted
-        else:
-            self.zero_point = zero_point
-            data = LiH_Data(prepend=False, append=False, keep4_25=keep4_25)
-            x = data.get_R()
-            e = data.get_E()
-            self.cs = CubicSpline(x, e)
-            self.pot = self._interp
+    def _setupSR(self, Rdata, Vdata):
+        model = SRPot(Rdata[1], Vdata[2], Vdata[0], Rdata[2]-Rdata[0])
+        pini = np.array([2.0, -8.1])
+        popt, pcov = curve_fit(model, Rdata, Vdata, p0=pini)
+        self.b = popt[0]
+        self.a = model.a(self.b)
+        self.c = popt[1]
+
+    def _short_range(self, R):
+        return self.a * np.exp(-self.b*R) + self.c
+
+    def _long_range(self, R):
+        return np.full(R.shape[0], self.Voo)
 
     def __call__(self, R):
-        return self.pot(R)
-
-    def _fitted(self, R):
-        dR = R - self.Re
-        return self.h - self.De*(1 + self.a*dR + self.b*dR**2
-                        + self.c*dR**3 + self.d*dR**4 + self.e*dR**5
-                        + self.f*dR**6 + self.g*dR**7)*np.exp(-self.a*dR)
-
-    def _low(self, R):
-        return 2.1125 * np.exp(-1.5051 * R) - 7.9308514
-
-    def _high(self, R):
-        return -147.9/R**6 - 20700/R**8 - 7.89142584
-
-    def _interp(self, R):
-        cond = [R < 1.75, ((1.75 <= R) & (R <= 25.0)), 25.0 < R]
-        fun = [self._low, self.cs, self._high]
+        cond = [R < self.Rdata[1], ((self.Rdata[1] <= R) & (R <= self.Rdata[-1])), self.Rdata[-1] < R]
+        fun = [self._short_range, self.cs, self._long_range]
         V = np.piecewise(R, cond, fun)
-        if self.zero_point == 'dissociation':
-            return V - self._high(100)
-        else:
-            return V
+        return V - self.Voo
 
 
 class LiH_Dipole:
-    def __init__(self, fitted=False, keep4_25=True):
-        if fitted:
-            self.Re = 8.80826679063919
-            self.De = -4.221782190714436
-            self.a = 0.060504494997313585
-            self.b = -0.10177939733508684
-            self.c = 0.003203916018615962
-            self.d = 0.002427370245358651
-            self.e = 3.4994557127168364e-05
-            self.f = -5.36284925127309e-05
-            self.g = 3.15445760842076e-06
-            self.h = -1.6897876241894067e-05
-            self.dip = self._fitted
+    def __init__(self, unit='a.u.'):
+        self.source = "Diniz, Kirnosov, Alijah, Mohallem, Adamowicz; J. Mol. Spectrosc. 322, 22-28 (2016). DOI: 10.1016/j.jms.2016.03.001"
+        self.Rdata, self.Ddata = parse_Ddata("data/lih_dipole_adamowicz.txt")
+        if unit.lower() == 'a.u.' or unit.lower() == 'au' or unit.lower() == 'ea0':
+            self.Ddata *= DEBYE # convert from Debye to a.u.
+            self.source += ' (unit: a.u.)'
+        elif unit.lower() == 'debye':
+            self.source += ' (unit: debye)'
         else:
-            data = LiH_Data(prepend=False, append=False, keep4_25=keep4_25)
-            x = data.get_R()
-            d = data.get_d()
-            self.cs = CubicSpline(x, d)
-            self.dip = self._interp
+            raise ValueError(f"Unknown dipole unit: {unit}")
+        x_extra = np.array([(self.Rdata[-1] + 10.*(i+1)) for i in range(2)])
+        y_extra = np.array([0., 0.])
+        xdata = np.concatenate((self.Rdata, x_extra))
+        ydata = np.concatenate((self.Ddata, y_extra))
+        self.cs = CubicSpline(xdata, ydata)
+        self.Rlong = x_extra[0]
+
+    def get_source(self):
+        return self.source
+
+    def get_R(self):
+        return self.Rdata
+
+    def get_D(self):
+        return self.Ddata
+
+    def _short_range(self, R):
+        return np.full(R.shape[0], self.Ddata[0])
+
+    def _long_range(self, R):
+        return np.full(R.shape[0], 0.)
+
+    def dipole(self, R):
+        cond = [R < self.Rdata[0], ((self.Rdata[0] <= R) & (R <= self.Rlong)), self.Rlong < R]
+        fun = [self._short_range, self.cs, self._long_range]
+        return np.piecewise(R, cond, fun)
 
     def __call__(self, x, y=None, direction='x'):
         if y is None:
-            return self.dip(x)
+            return self.dipole(x)
         else:
             r = np.sqrt(x**2 + y**2)
-            d = self.dip(r)
+            d = self.dipole(r)
             theta = np.arctan2(y, x)
             if direction.lower() == 'x':
                 return d * np.cos(theta)
@@ -209,37 +144,23 @@ class LiH_Dipole:
             else:
                 raise ValueError(f"Illegal direction: {direction}")
 
-    def _fitted(self, R):
-        dR = R - self.Re
-        return self.h - self.De*(1 + self.a*dR + self.b*dR**2
-                        + self.c*dR**3 + self.d*dR**4 + self.e*dR**5
-                        + self.f*dR**6 + self.g*dR**7)*np.exp(-self.a*dR**2)
-
-    def _low(self, R):
-        return np.full(R.shape[0], -1.91826)
-
-    def _high(self, R):
-        return np.full(R.shape[0], 0.000469)
-
-    def _interp(self, R):
-        cond = [R < 1.75, ((1.75 <= R) & (R <= 22.5)), 22.5 < R]
-        fun = [self._low, self.cs, self._high]
-        return np.piecewise(R, cond, fun)
-
 
 def visualize_pot(t0, t1, n, animate=False, folder='out', max_show=11):
-    V = LiH_Potential(fitted=False)
-    D = LiH_Dipole(fitted=False)
+    V = LiH_Potential()
+    D = LiH_Dipole()
     E = setup_pulse()
-    Veff = lambda xx, yy, tt: V(np.sqrt(xx**2 + yy**2)) - D(xx, yy) * E(t)
+    Veff = lambda xx, yy, tt: V(np.sqrt(xx**2 + yy**2)) - D(xx, yy) * E(tt)
 
-    x = np.linspace(-12.5, 12.5, 500)
-    y = np.linspace(-12.5, 12.5, 500)
+    xmin = -10
+    xmax = 10
+    ng = 20*(xmax - xmin) + 1
+    x = np.linspace(-15, 15, num=ng)
+    y = np.linspace(-15, 15, num=ng)
     X, Y = np.meshgrid(x, y)
 
-    vmin = -50
-    vmax = 50
-    scale = 1e3
+    vmin = -110
+    vmax = 110
+    scale = 1e3 # potential unit will be mEh
 
     if animate: 
         animation_file = f'{folder}/Veff_animation.mp4'
@@ -247,17 +168,18 @@ def visualize_pot(t0, t1, n, animate=False, folder='out', max_show=11):
         f = open(framelist_file, 'w')
 
     t_range = np.linspace(t0, t1, num=n)
+    cmap = plt.get_cmap('jet')
     for i, t in enumerate(t_range):
         Z = Veff(X, Y, t) * scale
         fig = plt.figure()
         ax = plt.axes(projection='3d')
-        my_cmap = plt.get_cmap('jet')
-        surf = ax.plot_surface(X, Y, Z, cmap=my_cmap, vmin=vmin, vmax=vmax, edgecolor=None, linewidth=0, antialiased=False)
+        surf = ax.plot_surface(X, Y, Z, cmap=cmap, vmin=vmin, vmax=vmax, edgecolor=None, linewidth=0, antialiased=False)
         fig.colorbar(surf, ax=ax, shrink=0.7, aspect=7)
         ax.set_title(f"t={t:.6f} E={E(t):.6f}")
         ax.set_zlim(vmin, vmax)
         ax.set_xlabel('x')
         ax.set_ylabel('y')
+        ax.elev = 20
 
         if animate:
             framename = f'Veff_{i:05d}.png'
@@ -279,65 +201,33 @@ def visualize_pot(t0, t1, n, animate=False, folder='out', max_show=11):
         subprocess.run(cmd, shell=True)
 
 
+
 if __name__ == '__main__':
-    import scipy.constants as const
+    ANIMATE = True
 
-    KEEP4_25 = False
-    UNIT = "cm-1"
+    V = LiH_Potential()
+    D = LiH_Dipole()
+    Re = V.get_Re()
+    Ve = V(Re)
+    print(f"Re= {Re} bohr     V(Re) = {Ve*1e3} mEh    Dipole(Re) = {D(Re)} a.u. = {D(Re)/DEBYE} debye")
+    R = np.linspace(0, 60, 6001)
 
-    if UNIT.lower() == "au":
-        unit = 1
-        unit_label = "Hartree"
-    elif UNIT.lower() == "ev":
-        unit = const.physical_constants['atomic unit of energy'][0]/const.e
-        unit_label = "eV"
-    elif UNIT.lower() == "cm-1":
-        unit = const.physical_constants['atomic unit of energy'][0]
-        unit /= const.h*const.c*1e2
-        unit *= 1e-3
-        unit_label = r"$10^3$ cm$^{-1}$"
-    else:
-        raise ValueError(f"Illegal UNIT={UNIT}")
-
-    Rmin = 1
-    Rmax = 25
-    ngrid = 100*(Rmax - Rmin) + 1
-    R = np.linspace(Rmin, Rmax, num=ngrid)
-    data = LiH_Data(prepend=False, append=False, keep4_25=KEEP4_25)
-
-    V = LiH_Potential(fitted=False, keep4_25=KEEP4_25)
-    Vfit = LiH_Potential(fitted=True)
-    Rref = data.get_R()
-    Vref = data.get_E()
-    Vref -= Vref[-1]
+    fig = plt.figure()
+    plt.plot(V.get_R(), V.get_E(), 'o', color="black")
+    plt.plot(R, V(R))
+    plt.ylim(Ve-0.01, 0.1)
 
     fig1 = plt.figure()
-    plt.title("Potential")
-    plt.plot(R, V(R)*unit, label="Interp")
-    plt.plot(R, Vfit(R)*unit, label="Fitted")
-    plt.plot(Rref, Vref*unit, 'o', label="Ref")
-    plt.xlim(Rmin, Rmax)
-    plt.ylim(-0.05*unit, 0.06*unit)
-    plt.xlabel(r"$R$/bohr")
-    plt.ylabel(fr"$V$/{unit_label}")
-    plt.legend()
+    DMC = D(R)
+    plt.plot(D.get_R(), D.get_D(), 'o', color="black")
+    plt.plot(R, DMC)
+    plt.ylim(DMC.min()-0.05, DMC.max()+0.05)
+    
 
-    D = LiH_Dipole(fitted=False, keep4_25=KEEP4_25)
-    Dfit = LiH_Dipole(fitted=True)
-    Dref = data.get_d()
-
-    fig2 = plt.figure()
-    plt.title("Dipole")
-    plt.plot(R, D(R), label="Interp")
-    plt.plot(R, Dfit(R), label="Fitted")
-    plt.plot(Rref, Dref, 'o', label="Ref")
-    plt.xlim(Rmin, Rmax)
-    plt.xlabel(r"$R$/bohr")
-    plt.ylabel(r"$d$/a.u.")
-    plt.legend()
     plt.show()
-
+    plt.close(fig)
     plt.close(fig1)
-    plt.close(fig2)
 
-    visualize_pot(0, 51120, 1001, animate=True)
+
+    if ANIMATE:
+        visualize_pot(0, 81500, 1001, animate=True)

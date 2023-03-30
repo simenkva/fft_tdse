@@ -16,6 +16,13 @@ def rgb_to_hsluv(r, g, b):
     fun = lambda r, g, b : hsluv.rgb_to_hsluv((r,g,b))
     return np.vectorize(fun)(r, g, b)
 
+def dens_vis(z, mag_map = lambda r: r):
+
+    dens = mag_map(np.abs(z)**2).clip(0,1)
+    bmp = dens_cmap(dens)
+
+    return bmp[:,:,:3]
+
 
 def mag_vis(z, mag_map = lambda r: r):
 

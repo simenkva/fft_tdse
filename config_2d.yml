@@ -13,15 +13,15 @@ sim_name: out/sim_2_0
 # 2L = box size, i.e., domain is [-L,L]**3.
 grid:
   n: 1024
-  L: 25
+  L: 10
   n_gs: 1024
-  L_gs: 25
+  L_gs: 10
   gs_tol: 1.0e-7
 
 # Set up mass and charge of single particle in 2D potential
 particles:
 #  q: 1.0
-  m: 1605.634307
+  m: 1605.5870308033236
 
 # Set up model potential.
 potential:
@@ -44,7 +44,7 @@ pulse:
 # the simulation interval
 # n_save: number of full wavefunction saves.
 integration:
-  t_final: 51120
-  dt: 20
-  n_inspect: 50
+  t_final: 657722
+  dt: 41
+  n_inspect: 1000
   n_save: 1000

@@ -250,12 +250,55 @@ def D_dipole(x):
 
     return D
 
+def theta(xx):
+    return np.arctan2(xx[1], xx[0])
+
+def theta2(xx):
+    return theta(xx)**2
+
+def cos_theta(xx):
+    return np.cos(theta(xx))
+
+def cos2_theta(xx):
+    return np.cos(theta(xx))**2
+
+class Operator:
+    """ Class for representing an operator on a FourierGrid."""
+    def __init__(self, grid, Ofun, local=True):
+        """ Constructor.
+
+        Ofun = a function that evaluates the local operator in a x-vector (local=True)
+               or in a k-vector (local=False), or an ndarray.
+
+        """
+        self.grid = grid
+        self.local = local
+        self.setOperator(Ofun)
+
+    def setOperator(self, Ofun):
+        if type(Ofun) == np.ndarray:
+            self.O = Ofun
+        else:
+            self.Ofun = Ofun
+            if self.local:
+                self.O = self.Ofun(self.grid.xx)
+            else:
+                self.O = self.Ofun(self.grid.kk)
+
+    def expectation_value(self, wf):
+        if self.local:
+            return self.grid.dtau * np.sum(wf.psi.conj() * self.O * wf.psi)
+        else:
+            return self.grid.dtau * np.sum(wf.phi.conj() * self.O * wf.phi)
+
+
+
 class FourierHamiltonian:
     """ Class for representing the system Hamiltonian on a FourierGrid."""
     def __init__(self, grid, Vfun, Tfun = T_standard, Dfun = D_dipole, Efun = E_zero):
         """ Constructor.
 
-        $$ H(t) = T + V + E(t)D $$
+        $$ H(t) = T + V - E(t)D $$
 
         Tfun = a function that evaluates the kinetic potential in a k-vector, or an ndarray
         Vfun = a function that evaluates the spatial potential in an x-vector, or an ndarray
