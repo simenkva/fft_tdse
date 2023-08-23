@@ -6,7 +6,7 @@ figures: True
 
 # Filename prefix for saved data.
 # Make sure any path used exists.
-sim_name: out/sim_0_2
+sim_name: out/demo
 
 # Grid parameters. n = number of
 # points in each direction, should be power of 2.
@@ -29,7 +29,7 @@ potential:
 
 # Set up laser parameters.
 pulse:
-  E0: 0.2
+  E0: 1.0
   t0 : 0.0
   om: 0 #0.31416
   T: 20.0
