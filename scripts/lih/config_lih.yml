@@ -6,7 +6,7 @@ figures: True
 
 # Filename prefix for saved data.
 # Make sure any path used exists.
-sim_name: out/sim_2_0
+sim_name: out/results
 
 # Grid parameters. n = number of
 # points in each direction, should be power of 2.
