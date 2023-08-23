@@ -15,8 +15,8 @@ grid:
   n: 1024
   L: 150
   n_gs: 256
-  L_gs: 20
-  gs_tol: 1.0e-7
+  L_gs: 37.5
+  gs_tol: 1.0e-9
 
 # Set up mass and charge of single particle in 2D potential
 particles:
