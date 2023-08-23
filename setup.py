@@ -8,11 +8,11 @@ setup(
     long_description="",
     packages=find_packages(),
     install_requires=[
-        "scipy", "hsluv", "colorcet",
+        "scipy", "hsluv", "colorcet", "h5py",
 #        "repos @ git+https://github.com/.../repos",
     ],
 #    test_suite="tests", 
-    entry_points={
-        'console_scripts': ['simulate2d=scripts.simulate2d:main']
-    }   
+    # entry_points={
+    #     'console_scripts': ['simulate2d=scripts.simulate2d:main']
+    # }   
 )

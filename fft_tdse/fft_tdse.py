@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.fft import fftn, ifftn, fftshift
 import matplotlib.pyplot as plt
-from scipy.interpolate import interpn
+from scipy.interpolate import interpn, RectBivariateSpline
 from scipy.sparse.linalg import cg, LinearOperator
 
 # TODO:
@@ -35,6 +35,98 @@ def fftgrid(a,b,N):
     return x,k
 
 
+
+class NewFourierGrid:
+    """Class for holding a multidimensional Fourier grid.
+    
+    This class implements a simple way to handle multidimensional grids for the Fourier pseudospectral method.
+
+
+    TODO:
+    Replace this new implementation. The difference is the definition of xx. Previous xx[i] must be replaced with xx[...,i] in 
+    all code that uses the class.
+
+    Attributes:
+        a (list of float):
+            list of left endpoints for each dimension
+        b (list of float):
+            list of right endpoints for each dimension
+        ng (list of int):
+            list of number of grid points for each dimension
+        x (list of ndarray):
+            1D Fourier grids for each dimension
+        k (list of ndarray):
+            1D Fourier frequency grids for each dimension
+        xx (list of ndarray):
+            spatial meshgrid. xx[...,i] is the i'th dimension's grid.
+        kk (list of ndarray):
+            frequency meshgrid. xx[...,i] is the i'th dimension's grid.
+        h (list of float):
+            mesh spacings (space)
+        dtau (float):
+            volume element, product of h
+        d (int):
+            dimension
+    """
+    def __init__(self,a,b,ng):
+        """ Constructor for Fouriergrid.
+
+        Args:
+            a (tuple, list):
+                left endpoints
+            b (tuple, list):
+                right endpoints
+            ng (tuple, list):
+                number of grid points
+
+
+        Example:
+            a = (-2,-3,-4)
+            b = (3,4,5)
+            ng = (128,128,128)
+            grid = FourierGrid(a,b,ng)
+        """
+
+        self.a = tuple(a)
+        self.b = tuple(b)
+        self.ng = tuple(ng)
+
+        assert(len(a) == len(ng))
+        d = len(ng)
+        self.d = d
+
+        #compute fft grid
+        self.x = []
+        self.k = []
+        for i in range(d):
+            x0,k0 = fftgrid(a[i], b[i], ng[i])
+            self.x.append(x0)
+            self.k.append(k0)
+
+        # The following results in an array xx (kk)
+        # whose last dimension indexes the spatial 
+        # component. I.e., self.xx[...,i] is the meshgrid of component i.
+
+        xx = np.meshgrid(*tuple(self.x),indexing='ij')
+        kk = np.meshgrid(*tuple(self.k),indexing='ij')
+        self.xx = np.moveaxis(np.array(xx), 0, -1)
+        self.kk = np.moveaxis(np.array(kk), 0, -1)
+
+        self.h = np.zeros(self.d)
+        for n in range(self.d):
+            self.h[n] = self.x[n][1] - self.x[n][0]
+        self.dtau = np.prod(self.h)
+
+    def __str__(self):
+        return str(self.__class__) + f": a = {self.a}, b = {self.b}, ng = {self.ng}"  
+    
+    def get_meshgrid(self):
+        """ Return meshgrid version of grid."""
+        
+        return tuple(self.xx[...,i].squeeze() for i in range(self.xx.shape[-1]))
+        
+  
+  
 class FourierGrid:
     def __init__(self,a,b,ng):
         """ Constructor for FourierGrid.
@@ -126,6 +218,9 @@ def interpolate(psi,grid,new_grid,order=3):
     
     Returns:
     * (ndarray): psi evaluated at new grid
+    
+    
+    TODO: update to new FourierGrid class. See comments.
     """
 
     d = new_grid.d
@@ -134,7 +229,8 @@ def interpolate(psi,grid,new_grid,order=3):
 
     xi = np.zeros((nn,d))
     for i in range(d):
-        xi[:,i] = np.reshape(new_grid.xx[...,i],(nn,))
+        #xi[:,i] = np.reshape(new_grid.xx[...,i],(nn,)) # for new FourierGrid class
+        xi[:,i] = np.reshape(new_grid.xx[i],(nn,))
 
     if d != 2: # extremely slow! must be fixed for generel dimensions
         kind='cubic'

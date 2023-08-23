@@ -10,3 +10,6 @@ scripts/simulate1d/out
 scripts/simulate2d/out
 scripts/simulate3d/out
 scripts/lih/out
+*egg-info
+dist
+build
