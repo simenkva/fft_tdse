@@ -1,3 +1,10 @@
+#
+#
+# Configuration file for a simulation of a single
+# charged (pseudo)particle in a 2d morse potential
+#
+#
+
 # verbose: print some extra information while running.
 verbose: True
 
@@ -6,17 +13,27 @@ figures: True
 
 # Filename prefix for saved data.
 # Make sure any path used exists.
-sim_name: out/demo
+sim_name: out/morse
 
 # Grid parameters. n = number of
-# points in each direction, should be power of 2.
-# 2L = box size, i.e., domain is [-L,L]**3.
+# points in each direction, should be power of 2
+# for best results with fft.
+# 2L = box size, i.e., domain is [-L,L]**2.
+#
+# The initial condition is computed on a smaller box of size
+# [-L_gs,L_gs]**2, with n_gs points. For best results, this should
+# be a subgrid of the main grid. Note that the computed ground state
+# is interpolated with cubic splines in any case, so even if the grids
+# do not perfectly align, accuracy is still very high.
+# The ground state is computed with inverse iterations, and gs_tol is the
+# convergence criterion for the norm of the change in the wavefunction.
+# The energy is converged to roughly the square of that.
 grid:
   n: 1024
   L: 20
   n_gs: 512
   L_gs: 10
-  gs_tol: 1.0e-7
+  gs_tol: 1.0e-10
 
 # Set up mass and charge of single particle in 2D potential
 particles:
@@ -28,6 +45,10 @@ potential:
    U: 'lambda x, y: morse((x**2 + y**2)**(.5), a = 1.4556, D = 0.17449, r_e = 1.4011)'
 
 # Set up laser parameters.
+# The laser pulse function is
+# a plane wave cos(om*(t-(t0 + T/2)))
+# multiplied with a sine square envelope
+# that extends from t0 to t0+T.
 pulse:
   E0: 2.0
   t0 : 0.0
@@ -37,9 +58,10 @@ pulse:
 # Set up integration parameters.
 # t_final: end of simulation time interval
 # dt: time step
-# n_inspect: number of inspections of densities over
-# the simulation interval
-# n_save: number of full wavefunction saves.
+# n_inspect: number of inspection plots that are
+# produced during simulation.
+# n_save: number of full wavefunction saves in the
+# produced dataset
 integration:
   t_final:  200.0
   n_inspect:  20
