@@ -4,9 +4,9 @@
 
 
 import numpy as np
-from fft_tdse import *
+from fft_tdse.fft_tdse import *
 from potentials import *
-from psiviz import *
+from fft_tdse.psiviz import *
 import matplotlib
 matplotlib.use('AGG')
 import matplotlib.pyplot as plt
