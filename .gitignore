@@ -2,10 +2,7 @@
 .ipynb_checkpoints
 __pycache__
 *.pyc
-*.hdf5
-*.mp4
-*.png
-*.mat
+
 dev_notebooks
 *.egg-info
 dist
