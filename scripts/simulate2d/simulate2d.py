@@ -1,18 +1,24 @@
-#
-# Simulation script for 1 particle in 2D
-#
-
-
 import numpy as np
-from fft_tdse import *
+from fft_tdse.fft_tdse import *
 from potentials import *
-from psiviz import *
+from fft_tdse.psiviz import *
 import matplotlib
 matplotlib.use('AGG')
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import h5py
 import argparse
+
+
+#
+# figindex is a global counter for
+# figures being saved to disk
+#
+figindex = 0
+
+#
+# Simulation script for 1 particle in 2D
+#
 
 #
 # Command line arguments
@@ -29,11 +35,7 @@ args = parser.parse_args()
 config_filename = args.config
 
 
-#
-# figindex is a global counter for
-# figures being saved to disk
-#
-figindex = 0
+
 def figname():
     """ Return figure filename and advance counter. """
     global figindex
@@ -365,3 +367,4 @@ with h5py.File(fname,'w') as h5file:
 if verbose:
     print('Done.')
     
+

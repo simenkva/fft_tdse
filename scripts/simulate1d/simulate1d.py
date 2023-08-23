@@ -1,17 +1,20 @@
 import numpy as np
-from fft_tdse import *
-from psiviz import *
+from fft_tdse.fft_tdse import *
+from fft_tdse.psiviz import *
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('AGG')
 from tqdm import tqdm
 from scipy.io import savemat
+import h5py
 
 #
 # figindex is a global counter for
 # figures being saved to disk
 #
 figindex = 0
+
+
 def figname():
     """ Return figure filename and advance counter. """
     global figindex
@@ -249,9 +252,6 @@ psi_hist[:,-1] = wf.psi
 # We visualize the entire history of the simulation. The colors represent the phase of the wavefunction.
 #
 
-# In[7]:
-
-
 if figures:
     plt.figure()
     plt.plot(t_range,E_hist)
@@ -269,6 +269,18 @@ if figures:
     plt.close()
 
 
-# Save simulation results
-matlab_output = {'x': x, 't': t_range, 'psi': psi_hist, 'E': E_hist}
-savemat(f'{sim_name}.mat', matlab_output)
+# # Save simulation results
+# matlab_output = {'x': x, 't': t_range, 'psi': psi_hist, 'E': E_hist}
+# savemat(f'{sim_name}.mat', matlab_output)
+
+
+# Open an h5 file
+with h5py.File(f'{sim_name}.hdf5','w') as h5file:
+
+    # Save simulation parameters.
+    h5file.create_dataset('/parameters/time', data=t_range)
+    h5file.create_dataset('/parameters/grid', data=x)
+    h5file.create_dataset('/wavefunctions/psigrid_re', data = psi_hist.real, compression = 'gzip')
+    h5file.create_dataset('/wavefunctions/psigrid_im', data = psi_hist.imag, compression = 'gzip')
+    h5file.create_dataset('/computed/energy', data = E_hist)
+

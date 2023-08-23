@@ -2,7 +2,11 @@ import numpy as np
 from numpy.fft import fftn, ifftn, fftshift
 import matplotlib.pyplot as plt
 from scipy.interpolate import interpn
+from scipy.sparse.linalg import cg, LinearOperator
 
+# TODO:
+#
+# Split into several modules with intuitive names
 
 
 def fftgrid(a,b,N):
@@ -102,6 +106,60 @@ class FourierGrid:
 
     def __str__(self):
         return str(self.__class__) + f": a = {self.a}, b = {self.b}, ng = {self.ng}"  #self.__dict__
+
+
+
+def interpolate(psi,grid,new_grid,order=3):
+    """ Interpolate / pad psi at new grid. 
+    
+    A function psi is defined on a FourierGrid grid, and then interpolated/padded
+    to a new FourierGrid. The parameter order can be used to determine the order
+    of the interpolation. In 2d, order can be any integer (e.g., order=3 for cubic),
+    but in other dimensions, order=1 or order=3 are the only options. For 2d,
+    scipy.interpolate.RectBivariateSpline is used, but interpn is used in other dimensions.
+    
+    Args:
+    * psi (ndarray): values on grid
+    * grid (FourierGrid): grid where psi lives
+    * new_grid (FourierGrid): grid where psi is to be defined
+    * kind (st
+    
+    Returns:
+    * (ndarray): psi evaluated at new grid
+    """
+
+    d = new_grid.d
+    shape = new_grid.ng
+    nn = np.prod(shape)
+
+    xi = np.zeros((nn,d))
+    for i in range(d):
+        xi[:,i] = np.reshape(new_grid.xx[...,i],(nn,))
+
+    if d != 2: # extremely slow! must be fixed for generel dimensions
+        kind='cubic'
+        #print('Running interpn ...')
+        if not (order == 1 or order == 3):
+            order = 1 #default to linear interpolation if order is not 1 or 3.
+        
+        if order == 1:
+            kind = 'linear'
+        else: # order ==3 only possibility left
+            kind = 'cubic'
+            
+        u = interpn(tuple(grid.x),psi.real,xi, method=kind, bounds_error=False, fill_value=None)
+        v = interpn(tuple(grid.x),psi.imag,xi, method=kind, bounds_error=False, fill_value=None)
+
+    else: # super fast! identical results in 2D.
+        #print('Running RectBivariateSpline ... ')
+        u = RectBivariateSpline(*tuple(grid.x), psi.real, kx=order, ky=order, s=0)(*tuple(new_grid.x))
+        v = RectBivariateSpline(*tuple(grid.x), psi.imag, kx=order, ky=order, s=0)(*tuple(new_grid.x))
+
+    psi = u + 1j * v
+    psi = psi.reshape(shape)
+
+    return psi
+
 
 class FourierWavefunction:
     """ Class for representing the wavefunction *and* its Fourier transform on a FourierGrid.
@@ -206,26 +264,38 @@ class FourierWavefunction:
         if update_dual:
             self.psi = ifftn(self.phi, norm = 'ortho')
 
-    def interpolate(self,new_grid,kind='linear'):
+    def interpolate(self,new_grid,order=3):
         """ Interpolate / pad psi at new grid. """
 
-        d = new_grid.d
-        shape = new_grid.ng
-        nn = np.prod(shape)
-
-        xi = np.zeros((nn,d))
-        for i in range(d):
-            xi[:,i] = np.reshape(new_grid.xx[i],(nn,))
-
-        u = interpn(tuple(self.grid.x),self.psi.real,xi, method=kind, bounds_error=False, fill_value=None)
-        v = interpn(tuple(self.grid.x),self.psi.imag,xi, method=kind, bounds_error=False, fill_value=None)
-
-        psi = u + 1j * v
-        psi = psi.reshape(shape)
-
+        psi = interpolate(self.psi, self.grid, new_grid, order=order)
         wf = FourierWavefunction(new_grid)
         wf.setPsi(psi,set_dual=True)
+
         return wf
+
+    # def interpolate(self,new_grid,kind='linear'):
+    #     """ Interpolate / pad psi at new grid. """
+
+        
+
+    #     d = new_grid.d
+    #     shape = new_grid.ng
+    #     nn = np.prod(shape)
+
+    #     xi = np.zeros((nn,d))
+    #     for i in range(d):
+    #         xi[:,i] = np.reshape(new_grid.xx[i],(nn,))
+
+    #     u = interpn(tuple(self.grid.x),self.psi.real,xi, method=kind, bounds_error=False, fill_value=None)
+    #     v = interpn(tuple(self.grid.x),self.psi.imag,xi, method=kind, bounds_error=False, fill_value=None)
+
+    #     psi = u + 1j * v
+    #     psi = psi.reshape(shape)
+
+    #     wf = FourierWavefunction(new_grid)
+    #     wf.setPsi(psi,set_dual=True)
+    #     return wf
+
 
 def T_standard(k,mu = 1):
     """ kinetic energy of particle(s) with mass mu."""
@@ -391,8 +461,6 @@ class Propagator:
 
         wf.applyFrequencyOperator(self.Tprop, update_dual = not will_do_another_step)
 
-
-from scipy.sparse.linalg import cg, LinearOperator
 
 class GroundStateComputer:
     """ Class for computing the ground state of a FourierHamiltonian (over its associated FourierGrid)."""

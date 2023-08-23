@@ -6,36 +6,29 @@ figures: True
 
 # Filename prefix for saved data.
 # Make sure any path used exists.
-sim_name: out/sim_2_0
+sim_name: out/henon_heiles
 
 # Grid parameters. n = number of
 # points in each direction, should be power of 2.
 # 2L = box size, i.e., domain is [-L,L]**3.
 grid:
-  n: 2048
-  L: 20
-  n_gs: 1024
-  L_gs: 10
-  gs_tol: 1.0e-7
+  n: 512
+  L: 12
 
-# Set up mass and charge of single particle in 2D potential
 particles:
-#  q: 1.0
-  m: 1605.5870308033236
+  m: 10.0
 
 # Set up model potential.
 potential:
 #  U: 'lambda x, y: (x**2 + y**2 + 0.1)**(-0.5)' 
-   U: 'lambda x, y: morse((x**2 + y**2)**(.5), a = 1.4556, D = 0.17449, r_e = 1.4011)'
-#   U: 'lih'
+  ell: .111806
 
-# Set up laser parameters.
-pulse:
-#  X: 'use external'
-  E0: 2.0
-  t0 : 0.0
-  om: 0 #0.31416
-  T: 20.0
+initial:
+  x0: 0.25
+  y0: 0.5
+  px0: -10.0
+  py0: 0.0
+  sigma0: 3.0
 
 # Set up integration parameters.
 # t_final: end of simulation time interval
@@ -44,12 +37,7 @@ pulse:
 # the simulation interval
 # n_save: number of full wavefunction saves.
 integration:
-  # t_final: 657722
-  # dt: 41
-  # n_inspect: 1000
-  # n_save: 1000
-  t_final:  100.0
-  n_inpect:  20
-  n_save:  100
-  dt: 0.1
-
+  t_final: 100.0
+  dt: 0.01
+  n_inspect: 100
+  n_save: 1000
