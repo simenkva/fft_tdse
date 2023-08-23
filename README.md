@@ -1,14 +1,10 @@
 # fft_tdse
 
-This is a simple toolbox for the solution of the time-dependent Schrödinger
-equation using split-step Fourier method. The toolbox is written in a fairly
-general fashion, for multiple dimensions, and assumes that the Hamiltonian is
-on the form
+This repository has two parts:
+  * A pagage with a toolbox for simulating the time-dependent Schroedinger equation
+    on a grid using the split-operator Fourier Transform (SOFT) method.
+  * A collection of configurable sample simulation scripts in 1d, 2d, and 3d
 
-$$ H(t) = T + V + E(t)*D, $$
-
-where $T$ is diagonal in the Fourier basis, and where $V$ and $D$ are diagonal in the
-spatial basis. $E(t)$ is a time-dependent scalar function.
-
-See the demonstration Jupter notebooks for an introduction to the capabilities
-of the toolbox.
+Upon installation, with `pip`, the toolbox `fft_tdse` is installed. The scripts
+are not installed. Probably you would like to edit them and the config files
+to suit your own needs. Thus, copy them to your desired location and edit away.
