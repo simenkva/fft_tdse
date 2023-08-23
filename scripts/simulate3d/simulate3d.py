@@ -3,15 +3,17 @@
 #
 
 import numpy as np
-from fft_tdse import *
-from psiviz import *
+from fft_tdse.fft_tdse import *
+from fft_tdse.psiviz import *
 import matplotlib
 matplotlib.use('AGG')
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import h5py
+import yaml
 
 
+raise NotImplementedError("This script is not up to date. Please do not use.")
 
 #
 # figindex is a global counter for
@@ -28,8 +30,7 @@ def figname():
 # Read configuration file
 #
 
-import yaml
-config = yaml.safe_load(open("config_2d.yml"))
+config = yaml.safe_load(open("config3d.yml"))
 
 try:
     verbose = config['verbose']
