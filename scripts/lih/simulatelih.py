@@ -20,11 +20,11 @@ import argparse
 # Command line arguments
 #
 parser = argparse.ArgumentParser(
-                    prog = 'simulate2d.py',
-                    description = '2d time-dependent Schrödinger equation solver',
+                    prog = 'simulatelih.py',
+                    description = '2d time-dependent Schrödinger equation solver for LiH model',
                     epilog = '')
 
-parser.add_argument('-c', '--config', default = 'config_2d.yml', required=False, help = 'YAML config file to use.')
+parser.add_argument('-c', '--config', default = 'config_lih.yml', required=False, help = 'YAML config file to use.')
 
 args = parser.parse_args()
 
