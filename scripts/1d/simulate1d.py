@@ -1,6 +1,7 @@
 import numpy as np
 from fft_tdse.fft_tdse import *
 from fft_tdse.psiviz import *
+from fft_tdse.fouriergrid import FourierGrid
 import matplotlib.pyplot as plt
 import matplotlib
 matplotlib.use('AGG')

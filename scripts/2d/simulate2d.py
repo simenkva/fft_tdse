@@ -1,5 +1,6 @@
 import numpy as np
 from fft_tdse.fft_tdse import *
+from fft_tdse.fouriergrid import FourierGrid
 from potentials import *
 from fft_tdse.psiviz import *
 import matplotlib

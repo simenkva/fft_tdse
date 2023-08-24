@@ -6,6 +6,7 @@
 
 import numpy as np
 from fft_tdse.fft_tdse import *
+from fft_tdse.fouriergrid import FourierGrid
 from potentials import *
 from pulse import setup_pulse
 from fft_tdse.psiviz import *
