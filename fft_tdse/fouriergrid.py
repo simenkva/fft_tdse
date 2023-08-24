@@ -230,7 +230,13 @@ def interpolate(psi,grid,new_grid,order=3):
     xi = np.zeros((nn,d))
     for i in range(d):
         #xi[:,i] = np.reshape(new_grid.xx[...,i],(nn,)) # for new FourierGrid class
-        xi[:,i] = np.reshape(new_grid.xx[i],(nn,))
+        if isinstance(new_grid, FourierGrid):
+            xi[:,i] = np.reshape(new_grid.xx[i],(nn,))
+        elif isinstance(new_grid, NewFourierGrid):
+            xi[:,i] = np.reshape(new_grid.xx[...,i],(nn,))
+        else:
+            raise ValueError('new_grid has wrong type')
+            
 
     if d != 2: # extremely slow! must be fixed for generel dimensions
         kind='cubic'
