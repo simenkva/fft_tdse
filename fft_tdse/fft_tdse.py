@@ -1,7 +1,7 @@
 import numpy as np
-from numpy.fft import fftn, ifftn
+from numpy.fft import fftn, ifftn, fftshift
 from scipy.sparse.linalg import cg, LinearOperator
-from .fouriergrid import interpolate
+from .fouriergrid import interpolate, to_polar_2d
 
 class FourierWavefunction:
     """ Class for representing the wavefunction *and* its Fourier transform on a FourierGrid.
@@ -114,6 +114,9 @@ class FourierWavefunction:
         wf.setPsi(psi,set_dual=True)
 
         return wf
+
+        
+
 
     # def interpolate(self,new_grid,kind='linear'):
     #     """ Interpolate / pad psi at new grid. """
@@ -262,6 +265,64 @@ class FourierHamiltonian:
 
         return self.grid.dtau*(np.sum(wf.phi.conj() * self.T * wf.phi) + np.sum(wf.psi.conj() * (self.V - Efield * self.D) * wf.psi))
 
+    def angmoms(self,wf):
+        """ Compute angular momenta expectations for 2d functions."""
+        
+        x = self.grid.xx[0]
+        y = self.grid.xx[1]
+        kx = self.grid.kk[0]
+        ky = self.grid.kk[1]
+        Lz_psi = x * ifftn(ky * wf.phi, norm='ortho') - y * ifftn(kx * wf.phi, norm='ortho')
+        Lz = np.sum(wf.psi.conj() * Lz_psi) * self.grid.dtau        
+        Lz2 = np.sum(Lz_psi.conj() * Lz_psi) * self.grid.dtau        
+        return Lz, Lz2
+   
+
+    # def angmom_spectrum(self, wf, Lmax):
+    #     """ Compute spectral weights of the angular momentum
+    #     operator in 2d. For simplicity we assume a centered box domain. """
+
+    #     # we assume x and y to have the same grids ...
+    #     # we need a quick implementation
+    #     rmax = self.grid.b[0]
+    #     nx = self.grid.ng[0]
+    #     # assume about 4 grid points per annulus
+    #     nr = nx // 4
+    #     dr = rmax / nr
+    #     # compute interval/annulus endpoints
+    #     r_range = np.linspace(0, rmax, nr+1)
+
+    #     print(f'rmax = {rmax}, nr = {nr}, dr = {dr}')
+    #     print(r_range)
+        
+    #     x = self.grid.xx[0]
+    #     y = self.grid.xx[1]
+    #     r = np.sqrt(x*x+y*y)
+    #     theta = np.arctan2(y, x)
+        
+    #     amp_mat = np.zeros((2*Lmax+1,nr), dtype = complex)
+    #     P = np.zeros((2*Lmax+1,))
+        
+    #     annuli = []
+    #     for k in range(nr):
+    #         annulus = (r < r_range[k+1]) * (r >= r_range[k]) * wf.psi
+    #         annuli.append(annulus)
+            
+    #     for m in range(-Lmax, Lmax+1):
+    #         print(f'm = {m} ...')
+    #         u = np.exp(-1j*m*theta)
+    #         for k in range(nr):
+    #             annulus = annuli[k]
+    #             amp = np.sum(annulus * u) * self.grid.dtau / (2*np.pi*dr)
+    #             amp_mat[m + Lmax, k] = amp
+    #         P[m+Lmax] = np.sum(np.abs(amp_mat[m+Lmax,:]**2 * (r[:-1] + dr/2)))    
+            
+    #     print('Sum of squares = ', np.sum(np.abs(P))**2)
+        
+    #     return P
+    
+        
+        
 
 class Propagator:
     """ Class for Strang splitting propagation of a FourierWavefunction using a FourierHamiltonian."""

@@ -1,5 +1,8 @@
 import numpy as np
 from scipy.interpolate import interpn, RectBivariateSpline
+from icecream import ic
+from numpy.fft import fft2, ifft2
+
 
 def fftgrid(a,b,N):
     """ Compute grid for Fourier pseudospectral method on an interval.
@@ -189,6 +192,15 @@ class FourierGrid:
     def __str__(self):
         return str(self.__class__) + f": a = {self.a}, b = {self.b}, ng = {self.ng}"  #self.__dict__
 
+def ensure_newfouriergrid(grid):
+    """ Convert to NewFourierGrid. """
+    
+    if isinstance(grid, NewFourierGrid):
+        return grid
+    
+    return NewFourierGrid(grid.a, grid.b, grid.ng)
+
+    
 
 def make_grid(x, Type=NewFourierGrid):
     """ Make one-dimensional FourierGrid from a vector of uniformly spaced points that misses the right endpoint. """
@@ -261,4 +273,118 @@ def interpolate(psi,grid,new_grid,order=3):
     psi = psi.reshape(shape)
 
     return psi
+
+
+def to_polar_2d(psi,grid,r_grid,theta_grid,order=3):
+    """ Evaluate psi on a polar coordinate grid in 2d
+    
+    A function psi is defined on a FourierGrid grid, and evaluated on a 
+    2d polar coordinate grid. Since evaluation will happen between
+    real grid points, interpolation must be used. The parameter order 
+    decides the inerpolation order.
+    
+    Args:
+    * psi (ndarray): values on grid
+    * grid (FourierGrid): grid where psi lives
+    * r_grid (ndarray): grid points for radial coord
+    * theta_grid (ndarray): grid points for angular coord
+    * order (int): interpolation order
+    
+    Returns:
+    * (ndarray): psi evaluated at polar coord grid
+    
+    
+    TODO: update to new FourierGrid class. See comments.
+    """
+
+    # make sure we are doing 2d functions
+    assert(grid.d == 2)
+    use_grid = ensure_newfouriergrid(grid)
+    
+    rr, tt = np.meshgrid(r_grid, theta_grid)
+    xx = rr * np.cos(tt)
+    yy = rr * np.sin(tt)
+    nn = np.prod(xx.shape)
+    
+    
+    u = RectBivariateSpline(*tuple(use_grid.x), psi.real, kx=order, ky=order, s=0)(xx.reshape(-1), yy.reshape(-1), grid=False)
+    v = RectBivariateSpline(*tuple(use_grid.x), psi.imag, kx=order, ky=order, s=0)(xx.reshape(-1), yy.reshape(-1), grid=False)
+
+    u = u.reshape(xx.shape)
+    v = v.reshape(xx.shape)
+        
+    psi2 = u + 1j * v
+
+    # compute norm ...
+    
+    # dr = r_grid[1]-r_grid[0]
+    # dt = theta_grid[1]-theta_grid[0]
+    # psi2_norm = np.sum(np.abs(psi2)**2 * rr) * dr * dt
+    # psi_norm = np.sum(np.abs(psi)**2) * grid.dtau
+    # ic(psi2_norm, psi_norm )
+
+
+    return psi2
+
+
+def get_angmom_expectations(psi, grid):
+    """ Compute angular momenta expectations for 2d functions."""
+    
+    assert(grid.d == 2)
+    
+    use_grid = ensure_newfouriergrid(grid)
+    
+    
+    x = use_grid.xx[...,0]
+    y = use_grid.xx[...,1]
+    kx = use_grid.kk[...,0]
+    ky = use_grid.kk[...,1]
+    
+    phi = np.fft.fftn(psi, norm='ortho')
+    ifftn = np.fft.ifftn
+    Lz_psi = x * ifftn(ky * phi, norm='ortho') - y * ifftn(kx * phi, norm='ortho')
+    Lz = np.sum(psi.conj() * Lz_psi) * grid.dtau        
+    Lz2 = np.sum(Lz_psi.conj() * Lz_psi) * grid.dtau        
+    return Lz.real, Lz2.real
+
+def get_angmom_spectrum(psi, grid, Lmax, nt_factor=2, nr_factor=1, interp_order=3):
+    """ Compute spectral weights of the angular momentum
+    operator in 2d. For simplicity we assume a centered box domain. """
+
+    assert(grid.d == 2)
+    use_grid = ensure_newfouriergrid(grid)
+    
+    nt = (2*Lmax+1) * nt_factor
+    theta_grid = np.linspace(0, 2*np.pi, nt)
+    rmax = grid.b[0]
+    nr = grid.ng[0] * nr_factor
+    r_grid = np.linspace(0, rmax, nr)
+    dr = r_grid[1]-r_grid[0]
+    # we assume x and y to have the same grids ...
+    # we need a quick implementation
+    # assume about 4 grid points per annulus
+
+    psi_polar = to_polar_2d(psi,use_grid,r_grid,theta_grid,order=interp_order)
+    rr, tt = np.meshgrid(r_grid,theta_grid)
+#    print(rr.shape, nt, nr)
+
+    # we are now fourier transforming along the theta axis.
+    # the result is that the second axis now counts the angular momenta, 
+    # but there are much more than we want.
+    phi_polar = np.fft.fftn(psi_polar, axes=(0,), norm='ortho')
+    P = np.zeros(2*Lmax + 1)
+    L_avg = 0
+    L2_avg = 0
+    for m in range(-Lmax, Lmax+1):
+        # by construction of the FFT, this indexing works!
+        u_m = phi_polar[m, :]
+        P[m+Lmax] = 2*np.pi * np.sum(np.abs(u_m)**2 * r_grid).real * dr / nt
+        L_avg += m*P[m+Lmax]
+        L2_avg += m*m*P[m+Lmax]
+#        ic(f'P[{m}] = {P[m+Lmax]}')
+        
+#    print('Sum of squares = ', np.sum(P))
+#    ic(L_avg, L2_avg) 
+    
+    return P.real, L_avg, L2_avg
 

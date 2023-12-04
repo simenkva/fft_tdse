@@ -33,7 +33,7 @@ grid:
   L: 20
   n_gs: 512
   L_gs: 10
-  gs_tol: 1.0e-10
+  gs_tol: 1.0e-12
 
 # Set up mass and charge of single particle in 2D potential
 particles:
@@ -50,7 +50,7 @@ potential:
 # multiplied with a sine square envelope
 # that extends from t0 to t0+T.
 pulse:
-  E0: 2.0
+  E0: 1.0
   t0 : 0.0
   om: 0 #0.31416
   T: 20.0
@@ -63,8 +63,9 @@ pulse:
 # n_save: number of full wavefunction saves in the
 # produced dataset
 integration:
-  t_final:  200.0
-  n_inspect:  20
-  n_save:  200
+  t_final:  300.0
+  n_inspect:  30
+  n_save:  300
   dt: 0.05
+  Lmax: 50
 

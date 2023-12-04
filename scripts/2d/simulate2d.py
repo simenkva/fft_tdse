@@ -1,6 +1,6 @@
 import numpy as np
 from fft_tdse.fft_tdse import *
-from fft_tdse.fouriergrid import FourierGrid
+from fft_tdse.fouriergrid import FourierGrid, get_angmom_expectations, get_angmom_spectrum
 from potentials import *
 from fft_tdse.psiviz import *
 import matplotlib
@@ -128,7 +128,6 @@ try:
 except:
     n_save = int(t_final)
 
-
 try:
     # Set up laser field
     E0 = config['pulse']['E0']
@@ -138,6 +137,10 @@ try:
 except:
     E0, om, T, t0 = 0.5, 0.482681, 2*np.pi*100.0/0.482681, 0
 
+try:
+    Lmax = config['integration']['Lmax']
+except:
+    Lmax = -1 # default is no computation of Lz.
 
 if verbose:
     print(f'Particle charges: {q}')
@@ -261,6 +264,7 @@ if verbose:
 # Create a wavefunction object
 wf = FourierWavefunction(grid)
 wf.setPsi(psi0.interpolate(grid).psi,normalize=True)
+psi_initial = wf.psi.copy() # save initial psi 
 if figures:
     visualize(wf,'Initial condition')
 
@@ -293,6 +297,9 @@ t_range = np.arange(0,t_final+dt,dt)
 dens_hist = np.zeros((len(grid.x[0]),len(t_range), 2), dtype=float)
 curr_hist = np.zeros((len(grid.x[0]),len(t_range), 2), dtype=float)
 energy_hist = np.zeros(len(t_range), dtype=float)
+L_hist = np.zeros(len(t_range), dtype=float)
+L2_hist = np.zeros(len(t_range), dtype=float)
+autocorr_hist = np.zeros(len(t_range), dtype=complex)
 
 # si = index for saves
 si = 0
@@ -321,14 +328,26 @@ with h5py.File(fname,'w') as h5file:
         for n in range(2):
             dens_hist[:,i,n] = wf.density(n)
             curr_hist[:,i,n] = wf.current(n)
-        #h5file.create_dataset(f'/densities/{i}/rho', data = dens_hist[:,i,:],compression='gzip')
-        #h5file.create_dataset(f'/currents/{i}/jp', data = curr_hist[:,i,:],compression='gzip')
         energy_hist[i] = ham.energy(wf, Efun(t)).real
 
+        # compute expectation value of L_z and L_z^2 using FFT techniques,
+        # i.e., L = -i (x dy - y dx).
+        L_hist[i], L2_hist[i] = get_angmom_expectations(wf.psi, grid)
+        autocorr_hist[i] = np.sum(wf.psi * psi_initial.conj()) * grid.dtau
+        
         # Save wavefunction
         if i % int(t_final/n_save/dt) == 0:
             h5file.create_dataset(f'/wavefunctions/{si}/psi', data=wf.psi, compression='gzip')
             h5file.create_dataset(f'/wavefunctions/{si}/t', data=t)
+            
+            if t < T + t0 and Lmax >= 0: # only do this costly operation while pulse is on
+                # compute full spectrum of L_z operator.
+                # NOTE: since we need to resolve psi on a polar grid.
+                # the results are not fully consistent with the averages
+                # stored in L_hist and L2_hist. The numbers in L_spec are good approximations, but not perfect.
+                L_spec, _, _ = get_angmom_spectrum(wf.psi, wf.grid, Lmax=Lmax, nr_factor=20, interp_order=5)
+                h5file.create_dataset(f'/wavefunctions/{si}/L_spec', data=L_spec)
+            
             si += 1
 
         # Visualize in real time
@@ -341,8 +360,12 @@ with h5py.File(fname,'w') as h5file:
 
     # Save energy history, density, and current
     h5file.create_dataset('/energy', data=energy_hist)
+    h5file.create_dataset('/autocorr', data=autocorr_hist)
+    h5file.create_dataset('/L_avg', data=L_hist)    
+    h5file.create_dataset('/L2_avg', data=L2_hist)    
     h5file.create_dataset('/density', data=dens_hist,compression='gzip')
     h5file.create_dataset('/current', data=curr_hist,compression='gzip')
+
 
 
 #
