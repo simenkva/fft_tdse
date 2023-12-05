@@ -9,11 +9,11 @@
 verbose: True
 
 # If true, figures will be generated and saved to PNG files
-figures: True
+figures: False
 
 # Filename prefix for saved data.
 # Make sure any path used exists.
-sim_name: out/morse_1024
+sim_name: out/morse_test
 
 # Grid parameters. n = number of
 # points in each direction, should be power of 2
@@ -63,9 +63,9 @@ pulse:
 # n_save: number of full wavefunction saves in the
 # produced dataset
 integration:
-  t_final:  300.0
+  t_final:  200.0
   n_inspect:  30
-  n_save:  300
+  n_save:  200
   dt: 0.05
   Lmax: 50
 
