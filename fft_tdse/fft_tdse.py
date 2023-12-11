@@ -18,11 +18,27 @@ class FourierWavefunction:
 
     """
 
-    def __init__(self, grid):
-        """ Constructor. Pass a FourierGrid instance as parameter. The wavefunction and its fft is created."""
+    def __init__(self, grid, psi=None, phi=None):
+        """ Constructor. 
+        
+        Sets the grid and the wavefunction. If neither psi nor phi is given, then psi and phi are set to zero.
+        If psi is given it takes precedence over phi (phi is computed from psi). If phi is given, then psi is computed from phi.
+        
+        Args:
+            grid: a FourierGrid instance.
+            psi: a spatial wavefunction.
+            phi: a frequency wavefunction. 
+        Returns:
+            A FourierWavefunction instance.
+        """
         self.grid = grid
-        self.psi = np.zeros(self.grid.ng,dtype=complex)
-        self.phi = np.zeros(self.grid.ng,dtype=complex)
+        if psi is not None:
+            self.setPsi(psi,set_dual=True,copy=True) 
+        elif phi is not None:
+            self.setPhi(phi,set_dual=True,copy=True)
+        else: # neither psi nor phi is given
+            self.psi = np.zeros(self.grid.ng,dtype=complex)
+            self.phi = np.zeros(self.grid.ng,dtype=complex)   
 
         #self.currmap = lambda psi,n:  np.sum(np.imag(ifftn(1j*k[n]*fftn(psi)) * psi.conj()),axis=notn(n))
 
