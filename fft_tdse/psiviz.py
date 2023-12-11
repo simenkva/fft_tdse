@@ -32,7 +32,7 @@ def mag_vis(z, mag_map = lambda r: r):
     return bmp[:,:,:3]
 
 
-def phase_mag_vis(z, mag_map = lambda r: r):
+def phase_mag_vis(z, mag_map = lambda r: r, cmap = phase_cmap):
     """ Render a phase-magnitude visualization of a complex 2d field using perceptually uniform colors from the `colorcet` module. 
     
 
@@ -52,7 +52,7 @@ def phase_mag_vis(z, mag_map = lambda r: r):
     bmp = np.zeros((nx, ny, 3))
 
     hue = np.angle(z, deg=True)/360 + .5
-    color = phase_cmap(hue)
+    color = cmap(hue)
 
     for i in range(3):
         bmp[:,:,i] = color[:,:,i] * mag_map(np.abs(z)).clip(0, 1) 
