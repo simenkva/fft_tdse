@@ -16,26 +16,24 @@ def rgb_to_hsluv(r, g, b):
     fun = lambda r, g, b : hsluv.rgb_to_hsluv((r,g,b))
     return np.vectorize(fun)(r, g, b)
 
-def dens_vis(z, mag_map = lambda r: r):
+def dens_vis(z, mag_map = lambda r: r, cmap=dens_cmap):
 
     dens = mag_map(np.abs(z)**2).clip(0,1)
-    bmp = dens_cmap(dens)
+    bmp = cmap(dens)
 
     return bmp[:,:,:3]
 
 
-def mag_vis(z, mag_map = lambda r: r):
+def mag_vis(z, mag_map = lambda r: r, cmap=dens_cmap):
 
     dens = mag_map(np.abs(z)).clip(0,1)
-    bmp = dens_cmap(dens)
+    bmp = cmap(dens)
 
     return bmp[:,:,:3]
 
 
 def phase_mag_vis(z, mag_map = lambda r: r, cmap = phase_cmap):
     """ Render a phase-magnitude visualization of a complex 2d field using perceptually uniform colors from the `colorcet` module. 
-    
-
 
     Input:
     - `z`: 2d complex `np.ndarray`
@@ -56,6 +54,43 @@ def phase_mag_vis(z, mag_map = lambda r: r, cmap = phase_cmap):
 
     for i in range(3):
         bmp[:,:,i] = color[:,:,i] * mag_map(np.abs(z)).clip(0, 1) 
+
+    return bmp
+
+def phase_mag_vis2(z, rho1 = 1.0, rho2 = 2.0, cmap = phase_cmap, mag_map = lambda r: r):
+    """ Render a phase-magnitude visualization of a complex 2d field using perceptually uniform colors from the `colorcet` module. 
+    
+    This new version uses logic from the HSL color scheme: when the magnitude is between 0 and rho1, then
+    colors are chosen from black to pure color. From rho1 to rho2, colors are chosen from pure color to white.
+    Above rho2, colors are white.
+
+    Args:
+    - `z`: 2d complex `np.ndarray`
+    - `rho1`: float, the magnitude at which the color starts to change from black to pure color.
+    - `rho2`: float, the magnitude at which the color starts to change from pure color to white.
+    - `cmap`: colormap
+
+    Output:
+    - `rgb`: 3d real `np.ndarray`, the last dimension is an RGB value.
+
+    
+    """
+
+    nx, ny = z.shape
+    bmp = np.zeros((nx, ny, 3))
+
+    hue = np.angle(z, deg=True)/360 + .5
+    color = cmap(hue)
+    mag = mag_map(np.abs(z))
+
+    satcolor = np.ones(3)
+    
+    range1 = mag.clip(0, rho1) / rho1 * (mag <= rho1)
+    range2 = ((mag.clip(rho1, rho2) - rho1) / (rho2 - rho1)) * (mag > rho1)
+    
+    for i in range(3):
+        bmp[:,:,i] = color[:,:,i] * range1
+        bmp[:,:,i] += satcolor[i]*range2 + color[:,:,i]*(1-range2)*(mag>rho1)
 
     return bmp
 
