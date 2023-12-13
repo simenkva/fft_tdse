@@ -358,7 +358,7 @@ class Propagator:
         self.dt = dt
         self.Tprop = np.exp(-0.5j*dt*self.ham.T)
         self.Vprop = np.exp(-1j*dt*self.ham.V)
-        self.Eprop = lambda t: np.exp(1j*dt*self.ham.Efun(t)*self.ham.D)
+        self.Eprop = lambda t: np.exp(-1j*dt*self.ham.Efun(t)*self.ham.D)
 
     def strang(self,wf,t,will_do_another_step = True):
         """ Perform a step of the Strang splitting propagator.
