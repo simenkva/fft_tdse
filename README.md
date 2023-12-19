@@ -1,9 +1,13 @@
 # fft_tdse
 
 This is a simulation toolbox for simulating the time-dependent Schrödinger equation,
+
 $$ i \partial_t \Psi(x,t) = H(t) \Psi(x,t), \quad \Psi(0) \text{ given}, $$
+
 where $x \in \mathbb{R}^n$, using the split-step Fourier method. The basic functionality is very general and supports Hamiltonians of the form
+
 $$ H(t) = T(k) + V(x) + U(x,t), $$
+
 where $T(k)$ is any operator diagonal in momentum space, and $V(x)$ and $U(x,t)$ are diagonal in position space.
 Additionally, $U(x,t)$ depends explicitly on time.
 
