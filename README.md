@@ -1,16 +1,27 @@
 # fft_tdse
 
-This repository has two parts:
+This is a simulation toolbox for simulating the time-dependent Schrödinger equation,
+$$ i \partial_t \Psi = H(t) \Psi, \quad \Psi(0) \text{ given}, $$
+using the split-step Fourier method. The basic functionality is very general and supports Hamiltonians of the form
+$$ H(t) = T(k) + V(x) + U(x,t), $$
+where $T(k)$ is any operator diagonal in momentum space, and $V(x)$ and $U(x,t)$ are diagonal in position space.
+Additionally, $U(x,t)$ depends explicitly on time.
+
+
+The contents of this repository can be summarized as follows:
   * A pagage with a toolbox for simulating the time-dependent Schroedinger equation
     on a grid using the split-operator Fourier Transform (SOFT) method.
-  * A collection of configurable sample simulation scripts in 1d, 2d, and 3d
+  * A simulator class for easily setting up simulations in 1d, 2d, and 3d.
+  * Animator classes for easily producing visually appealing animations using matplotlib and FFMPEG.
+  * A collection of demo notebooks for 1d and 2d simulations:  <./demo_notebooks> .
+    * You can run the demo notebooks and produce the animations using <./demo_notebooks/run_notebooks.py>.
+  * TO BE UPDATED: A collection of configurable sample simulation scripts in 1d, 2d, and 3d
 
 ## Installation
 
 Clone the repository and run `pip install .`. This will install the `fft_tdse` toolbox.
 The scripts are not installed. Probably you would like to edit them and the config files
 to suit your own needs. Thus, copy them to your desired location and edit away.
-
 
 ## Contributing
 
@@ -20,7 +31,6 @@ To contribute, please follow these guidelines:
 2. Make your changes and ensure they align with the project's goals and coding conventions.
 3. Test your changes thoroughly to ensure they do not introduce any regressions.
 4. Submit a pull request with a clear description of your changes and their purpose.
-
 
 ## License
 
