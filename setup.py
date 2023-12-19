@@ -8,7 +8,7 @@ setup(
     long_description="",
     packages=find_packages(),
     install_requires=[
-        "scipy", "hsluv", "colorcet", "h5py",
+        "scipy", "hsluv", "colorcet", "h5py", "icecream"
 #        "repos @ git+https://github.com/.../repos",
     ],
 #    test_suite="tests", 
