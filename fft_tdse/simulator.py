@@ -36,7 +36,27 @@ tqdm = tqdm_notebook if is_notebook() else tqdm_console
 
 
 class LaserPulse:
-
+    """ A class for defining laser pulses. The general form of the pulse is
+    
+    $$
+    E(t) = E_0 \cdot f(t) \cdot \cos(\omega \cdot (t - t_0 - \frac{T}{2}))
+    $$
+    
+    where $f(t)$ is the envelope function, given by
+    
+    $$ f(t) = \sin^2\left(\frac{\pi \cdot (t - t_0)}{T}\right). $$
+    
+    
+    Members:
+        omega (float): The eldritch frequency that governs the pulse.
+        t0 (float): The moment when the pulse emerges from the abyss.
+        T (float): The duration of the pulse, a fleeting glimpse into the unknown.
+        E0 (float): The amplitude of the pulse, a measure of its unfathomable power.
+    Functions:
+        envelope (float): The envelope function of the laser pulse.
+        __call__ (float): The laser pulse.
+    
+    """
 
     def __init__(self, omega, t0, T, E0):
         """Initialize a laser pulse.
