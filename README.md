@@ -1,8 +1,8 @@
 # fft_tdse
 
 This is a simulation toolbox for simulating the time-dependent Schrödinger equation,
-$$ i \partial_t \Psi = H(t) \Psi, \quad \Psi(0) \text{ given}, $$
-using the split-step Fourier method. The basic functionality is very general and supports Hamiltonians of the form
+$$ i \partial_t \Psi(x,t) = H(t) \Psi(x,t), \quad \Psi(0) \text{ given}, $$
+where $x \in \mathbb{R}^n$, using the split-step Fourier method. The basic functionality is very general and supports Hamiltonians of the form
 $$ H(t) = T(k) + V(x) + U(x,t), $$
 where $T(k)$ is any operator diagonal in momentum space, and $V(x)$ and $U(x,t)$ are diagonal in position space.
 Additionally, $U(x,t)$ depends explicitly on time.
@@ -10,7 +10,7 @@ Additionally, $U(x,t)$ depends explicitly on time.
 
 The contents of this repository can be summarized as follows:
   * A pagage with a toolbox for simulating the time-dependent Schroedinger equation
-    on a grid using the split-operator Fourier Transform (SOFT) method.
+    on a grid using the split-step FFT method.
   * A simulator class for easily setting up simulations in 1d, 2d, and 3d.
   * Animator classes for easily producing visually appealing animations using matplotlib and FFMPEG.
   * A collection of demo notebooks for 1d and 2d simulations:  <./demo_notebooks> .
@@ -19,9 +19,16 @@ The contents of this repository can be summarized as follows:
 
 ## Installation
 
+
 Clone the repository and run `pip install .`. This will install the `fft_tdse` toolbox.
 The scripts are not installed. Probably you would like to edit them and the config files
 to suit your own needs. Thus, copy them to your desired location and edit away.
+
+To compile one of the demo notebooks, move to the `demo_notebooks` folder and run
+```
+python run_notebooks.sh -p Hydrogen model in 1d.ipynb
+```
+This particular command will produce a movie `atom_1d.mp4`
 
 ## Contributing
 
