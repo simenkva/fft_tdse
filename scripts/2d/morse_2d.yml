@@ -29,7 +29,7 @@ sim_name: out/morse_test
 # convergence criterion for the norm of the change in the wavefunction.
 # The energy is converged to roughly the square of that.
 grid:
-  n: 1024
+  n: 512
   L: 20
   n_gs: 512
   L_gs: 10
@@ -38,7 +38,8 @@ grid:
 # Set up mass and charge of single particle in 2D potential
 particles:
   q: 1.0
-  m: 1605.5870308033236
+  m: 918.076341
+  #m: 1605.5870308033236
 
 # Set up model potential.
 potential:

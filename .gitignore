@@ -6,4 +6,5 @@ build
 *.pyc
 *.mp4
 *.png
+frames
 __pycache__
