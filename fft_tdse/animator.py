@@ -63,6 +63,9 @@ class AnimatorBase:
         
         # set up caption
         self.caption_format = 't = {sim.t:.2f}'
+        self.caption_pos = (0.05, 0.95) # position of caption in figure
+        self.caption_font = None # custom font for caption
+        
         
         # set up axis.
         # it is the responsibility of the subclass
@@ -81,9 +84,26 @@ class AnimatorBase:
         
     def get_caption(self):
         """
-        Format the caption text.
+        Format the caption text. To be run by subclass within make_frame()
         """
         return self.caption_format.format(sim=self.simulator)
+    
+    def place_caption(self):
+        """ Place the caption in the figure. To be run by subclass within init_figure(). """
+        
+        # set caption
+        caption_text = self.get_caption()
+        ic(self.caption_font)
+        # z index should be frontmost
+        self.caption = plt.text(
+            *self.caption_pos, 
+            caption_text, 
+            transform=self.fig.transFigure, 
+            ha='left', 
+            fontproperties=self.caption_font,
+            zorder=100
+        )
+        
     
 
     def set_framesize(self, width_pixels, height_pixels):
@@ -126,9 +146,7 @@ class AnimatorBase:
         # set new backend
         matplotlib.use('AGG')
 
-        ic("I am in init_figure")
         if hasattr(self, 'style'):
-            ic('style exists')
             self.style.mpl_style()
             
         # make figure
@@ -281,8 +299,6 @@ class Animator1d(AnimatorBase):
         self.imag_color = 'C1'
         self.abs_color = 'C2'
         self.pot_color = 'C3'
-        self.caption_pos = (0.0125, 0.0125)
-        self.caption_font = None
         self.xtick_pad = 15
         self.show_legend = False
         
@@ -350,14 +366,8 @@ class Animator1d(AnimatorBase):
         plt.ylim(-1, 1)
 
         # set caption
-        caption_text = self.get_caption()
-        self.caption = plt.text(
-            *self.caption_pos, 
-            caption_text, 
-            transform=self.fig.transFigure, 
-            ha='left', 
-            fontproperties=self.caption_font
-        )
+        self.place_caption()
+        
         
         # draw axis
         if self.show_axis:
@@ -449,6 +459,7 @@ class Animator2d(AnimatorBase):
         self.phase_cmap = colorcet.cm['CET_C6']
         #self.phase_cmap = colorcet.cm['CET_C3s']
         self.mag_cmap = colorcet.cm['CET_L2']
+        
 
 
     def get_extent(self):
@@ -465,13 +476,16 @@ class Animator2d(AnimatorBase):
         """
 
         
-        fig_width = self.fig_width
-        fig_height = self.fig_height
+#        fig_width = self.fig_width
+#        fig_height = self.fig_height
         
-        self.fig, self.ax = plt.subplots(1, 1, figsize = (fig_width,fig_height))
-        plt.axis('off')
-        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
-        
+#        self.fig, self.ax = plt.subplots(1, 1, figsize = (fig_width,fig_height))
+#        plt.axis('off')
+#        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+
+
+        super().init_figure()
+                
 
         psi = self.simulator.psi
         
@@ -494,14 +508,9 @@ class Animator2d(AnimatorBase):
             self.ax.set_ylim(self.ylim[0], self.ylim[1])
             
         # set caption
-        caption_text = self.get_caption()
-        self.caption = self.ax.text(
-            .0125, .0125, 
-            caption_text, 
-            color = 'white', 
-            transform=self.ax.transAxes
-        )
-
+        self.place_caption()    
+        
+        
         if self.show_axis:
             # move tick labels to the inside 
             self.ax.tick_params(axis="y", direction="in", pad=-22)
@@ -600,12 +609,13 @@ class Style:
         pass
     
     
-class DarkTheme1d(Style):
+class DarkTheme(Style):
 
     def mpl_style(self):
         # set dark theme in matplotlib
 
-        ic('hi there!')
+        ic('inside mpl_style')
+        
         plt.style.use('dark_background')
         
         
@@ -620,21 +630,28 @@ class DarkTheme1d(Style):
         mpl.rcParams['axes.labelsize'] = 20
         
         # set font to be Manrope for all text
-        mpl.rcParams['font.family'] = 'JetBrains Mono'
+#        mpl.rcParams['font.family'] = 'JetBrains Mono'
+        # Set alternative font if JetBrains Mono is not available,
+        # include system default in list of sans-serif fonts
+        mpl.rcParams['font.sans-serif'] = ['JetBrains Mono', 'DejaVu Sans']
+        
         # set font size for ticks
         mpl.rcParams['xtick.labelsize'] = 16
         mpl.rcParams['ytick.labelsize'] = 16
         # set tick marker size
-        mpl.rcParams['xtick.major.size'] = 12
+        mpl.rcParams['xtick.major.size'] = 10
+        mpl.rcParams['xtick.major.width'] = 1
 
         
         # set caption location in anim
         self.anim.caption_pos = (0.06, 0.9)
         self.anim.caption_font = FontProperties(size=20, style='italic')
-        self.anim.xtick_pad = 20 
+        self.anim.xtick_pad = 25 
         
-        # add legend to anim.ax, labels are 'real', 'imat', 'abs', 'pot'
-        self.anim.show_legend = True    
+        if isinstance(self.anim, Animator1d):
+            # add legend to anim.ax, labels are 'real', 'imat', 'abs', 'pot'
+            self.anim.show_legend = True    
+        
         
     
     def frame_postprocess(self, anim : AnimatorBase):
