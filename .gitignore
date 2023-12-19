@@ -7,4 +7,6 @@ build
 *.mp4
 *.png
 frames
+frames1
+frames2
 __pycache__
