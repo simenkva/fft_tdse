@@ -13,7 +13,7 @@ Additionally, $U(x,t)$ depends explicitly on time.
 
 
 The contents of this repository can be summarized as follows:
-  * A pagage with a toolbox for simulating the time-dependent Schroedinger equation
+  * A package with a toolbox for simulating the time-dependent Schroedinger equation
     on a grid using the split-step FFT method.
   * A simulator class for easily setting up simulations in 1d, 2d, and 3d.
   * Animator classes for easily producing visually appealing animations using matplotlib and FFMPEG.
