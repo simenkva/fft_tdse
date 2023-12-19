@@ -102,6 +102,10 @@ class Simulator:
     
     Here is an example of how to use the simulator:
     
+    ```python
+    # Import the Simulator class
+    from fft_tdse.simulator import Simulator
+    
     # Create a Simulator instance
     sim = Simulator()
 
@@ -131,6 +135,8 @@ class Simulator:
     plt.figure()
     plt.imshow(sim.psi.real)
     plt.show()
+    ```
+    
     """
     def __init__(self, verbose=True):
         """
