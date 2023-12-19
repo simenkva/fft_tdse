@@ -34,47 +34,42 @@ from tqdm.notebook import tqdm as tqdm_notebook
 from tqdm import tqdm as tqdm_console
 tqdm = tqdm_notebook if is_notebook() else tqdm_console
 
+
 class LaserPulse:
+
+
     def __init__(self, omega, t0, T, E0):
         """Initialize a laser pulse.
-        
-        The laser pulse model is
-        $$ E(t) = E_0 \sin^2(\pi(t-t_0)/T) \cos(\omega(t-t_0 - T/2)) $$
-        
+
         Args:
-            omega (float): The frequency of the laser pulse.
-            t0 (float): The time at which the pulse starts.
-            T (float): The duration of the pulse.
-            E0 (float): The amplitude of the pulse.
-            
-        Returns:
-            None
+            omega (float): The eldritch frequency that governs the pulse.
+            t0 (float): The moment when the pulse emerges from the abyss.
+            T (float): The duration of the pulse, a fleeting glimpse into the unknown.
+            E0 (float): The amplitude of the pulse, a measure of its unfathomable power.
         """
-        
         self.omega = omega
         self.t0 = t0
         self.T = T
         self.E0 = E0
         self.envelope = np.vectorize(self.envelope)
-        
-        
-        
+
     def envelope(self, t):
-        """ The envelope function of the laser pulse.
-        
+        """The envelope function of the laser pulse.
+
         Args:
             t (float): The time.
-        Returns: 
+
+        Returns:
             float: The envelope function.
         """
-        if t <= self.t0 or t >= self.T+self.t0:
+        if t <= self.t0 or t >= self.T + self.t0:
             return 0.0
         else:
-            return np.sin(np.pi*(t-self.t0)/self.T)**2
+            return np.sin(np.pi * (t - self.t0) / self.T) ** 2
 
     def __call__(self, t):
-        """ The laser pulse. """
-        return self.E0 * self.envelope(t) * np.cos(self.omega*(t-(self.t0 + self.T/2)))
+        """The laser pulse."""
+        return self.E0 * self.envelope(t) * np.cos(self.omega * (t - (self.t0 + self.T / 2)))
     
         
 
@@ -85,9 +80,37 @@ class Simulator:
     It provides a convenient interface to the FFT-TDSE code, and allows the user
     to easily read various variables during simulation using a callback feature.
     
-    Here is an exmaple of how to use the simulator:
-    ...
+    Here is an example of how to use the simulator:
     
+    # Create a Simulator instance
+    sim = Simulator()
+
+    # Set the dimension of the simulation to 2
+    sim.set_dimension(2)
+
+    # Set the grid parameters
+    sim.set_grid([-10, -10], [10, 10], [128, 128])
+
+    # Set the potential function
+    sim.set_potential(lambda x, y: x**2 + y**2)
+
+    # Set the initial condition function
+    sim.set_initial_condition(lambda x, y: np.exp(-((x-0.5)**2 + (y-0.5)**2)/0.1))
+
+    # Set the time parameters
+    sim.set_time_parameters(0, 1, 100)
+
+    # Prepare the simulation
+    sim.prepare()
+
+    # Run the simulation
+    sim.simulate()
+
+    # Visualize the results using matplotlib
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.imshow(sim.psi.real)
+    plt.show()
     """
     def __init__(self, verbose=True):
         """
