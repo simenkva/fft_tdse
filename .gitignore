@@ -4,4 +4,6 @@
 dist
 build
 *.pyc
+*.mp4
+*.png
 __pycache__
