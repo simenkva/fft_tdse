@@ -82,7 +82,10 @@ def phase_mag_vis2(z, rho1 = 1.0, rho2 = 2.0, cmap = phase_cmap, mag_map = lambd
     nx, ny = z.shape
     bmp = np.zeros((nx, ny, 3))
 
-    hue = np.angle(z, deg=True)/360 + .5
+    # hue increases from 0 to 1 when phase increases from 0 to 2pi
+    hue = np.angle(z, deg=True)/360
+    hue += (hue < 0)*1.0
+    
     color = cmap(hue)
     mag = mag_map(np.abs(z))
 
