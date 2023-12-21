@@ -589,10 +589,9 @@ class Simulator:
             callback(self)
 
         for i in tqdm(range(self.n_steps)):
-            self.t_index = i
             self.t = self.t_grid[i]
             self.prop.strang(self.wf,self.t,will_do_another_step=False)
-            
+            self.t_index += 1
             
             # handy for the user
             self.psi = self.wf.psi

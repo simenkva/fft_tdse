@@ -1,6 +1,7 @@
 from .simulator import *
 import matplotlib.pyplot as plt
 import os
+import shutil
 from icecream import ic
 import matplotlib
 #matplotlib.use('AGG')
@@ -219,6 +220,20 @@ class AnimatorBase:
         # Increment the frame index and add the filename to the frame list
         self.frame_index += 1
         self.frame_list.append(filename)
+        
+    def copy_frame(self, index):
+        """ Coppy a frame and advance counter by one. """
+        
+        # Generate the filename for the current frame
+        filename = self.format % self.frame_index
+        
+        # copy the file pointed to by index
+        shutil.copyfile(self.frame_list[index], filename)
+        
+        # Increment the frame index and add the filename to the frame list
+        self.frame_index += 1
+        self.frame_list.append(filename)
+        
 
     def get_frame(self, index):
         """Get a frame from the animation, read from disk. Useful if you want to display a single frame in a notebook 
@@ -235,7 +250,7 @@ class AnimatorBase:
         return plt.imread(filename)
     
 
-    def make_movie(self, filename):
+    def make_movie(self, filename, duplicate_last_frame = 0):
         """Make a movie from the frames.
 
         Args:
@@ -243,6 +258,20 @@ class AnimatorBase:
 
         """
         ic(len(self.frame_list))
+        
+        # # this is a hack for now. first frame is
+        # # duplicated in the movie. so we remove it.
+        # # copy frame list
+        # frame_list = self.frame_list.copy()
+        # # pop first frame
+        # frame_list.pop(0)
+        
+        # add last frame a number of times
+        # since ffmpeg seems to drop a few frames
+        # in certain cases
+        if duplicate_last_frame > 0:
+            for i in range(duplicate_last_frame):
+                self.copy_frame(-1)
 
         command = ('ffmpeg',
                    '-r', '24',
@@ -492,7 +521,7 @@ class Animator2d(AnimatorBase):
 
         # make RGB bitmap            
         self.make_bmp(psi) # self.bmp
-
+        
         # plot bitmap
         self.ax.clear()
         self.image = self.ax.imshow(
@@ -551,6 +580,10 @@ class Animator2d(AnimatorBase):
             max_dens = np.abs(psi).max() * dens_factor
             scale = np.abs(psi).max() * dens_factor
         
+        # hack to turn of density scaling
+        if hasattr(self, 'no_scale'):
+            scale = 1.0
+
 
         phase_factor = np.exp(1j * self.energy_shift * self.simulator.t)
         if self.vis_type == 'complex':
