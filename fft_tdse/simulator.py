@@ -615,21 +615,29 @@ class Simulator:
         self.t = self.t0
         self.t_index = 0
 
-        if callback is not None:
-            callback(self)
 
         for i in tqdm(range(self.n_steps)):
             self.t = self.t_grid[i]
             self.laser_value = self.laser_pulse_fun(self.t)
+
+            if callback is not None:
+                callback(self)
+
+
             self.time_step() # prop.strang(self.wf,self.t,will_do_another_step=False)
             self.t_index += 1
             
             # handy for the user
             self.psi = self.wf.psi
 
-            if callback is not None:
-                callback(self)
+            # if callback is not None:
+            #     callback(self)
         
+        self.t = self.t_grid[i]
+        self.laser_value = self.laser_pulse_fun(self.t)
+        if callback is not None:
+            callback(self)
+    
     
     
     
