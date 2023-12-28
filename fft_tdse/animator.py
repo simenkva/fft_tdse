@@ -360,6 +360,9 @@ class AnimatorBase:
         """Remove the frame files."""
         for filename in self.frame_list:
             os.remove(filename)
+        # delete folder
+        os.rmdir(self.folder)
+        
             
     def restore_backend(self):
         """Restore the previous matplotlib backend."""
