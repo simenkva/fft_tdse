@@ -633,7 +633,7 @@ class Simulator:
             # if callback is not None:
             #     callback(self)
         
-        self.t = self.t_grid[i]
+        self.t = self.t_grid[-1]
         self.laser_value = self.laser_pulse_fun(self.t)
         if callback is not None:
             callback(self)
