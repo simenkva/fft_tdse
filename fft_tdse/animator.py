@@ -14,6 +14,8 @@ from IPython.display import clear_output, display
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib.font_manager import FontProperties
+import mpl_toolkits.axisartist as axisartist
+
 
 
 
@@ -27,6 +29,7 @@ class AnimatorBase:
     - make_frame: make a frame for the animation by updating the figure. Should call super().make_frame() first.
 
     Attributes:
+        name: The name of the animation. Overrides folder if exists.
         simulator: The simulator object used for the animation.
         folder: The folder path where the frames will be saved.
         fig_width: The width of the figure in inches.
@@ -45,10 +48,20 @@ class AnimatorBase:
 
     """
 
-    def __init__(self, simulator, folder = './frames/'):
+    def __init__(self, simulator, name = None):
         self.simulator = simulator
 
-        self.folder = folder
+        # set up name of animation
+        if name is None:
+            self.name = "animation"
+        else:
+            self.name = name
+        ic(self.name)
+        
+        # set up folder for storing frames
+        self.folder = f'./{self.name}_frames/'
+        ic(self.folder)
+        
         # make sure folder exists
         if not os.path.exists(self.folder):
             os.makedirs(self.folder)
@@ -57,7 +70,7 @@ class AnimatorBase:
         self.set_framesize(800, 600)
         self.skip_interval = 1
         self.basename = 'frame'
-        self.digits = 5
+        self.digits = 6
         self.extension = '.png'
         self.format = self.folder + self.basename + '%0' + str(self.digits) + 'd' + self.extension
         ic(self.format)
@@ -72,6 +85,11 @@ class AnimatorBase:
         # it is the responsibility of the subclass
         # to properly set up the axis
         self.show_axis = True
+        
+        # add inset axes params
+        self.axins_shape = [0.8, 0.8, 0.18, 0.18]
+        self.axins_dot_size = 100
+
        
     def set_style(self, style):
         """ Set the style of the animation. """
@@ -99,14 +117,25 @@ class AnimatorBase:
         self.caption = plt.text(
             *self.caption_pos, 
             caption_text, 
-            transform=self.fig.transFigure, 
+#            transform=self.fig.transFigure, 
+            transform=self.ax.transAxes,
             ha='left', 
             fontproperties=self.caption_font,
             zorder=100
         )
         
     
+    def set_figwidth(self, fig_width):
+        """Set the width of the figure.
 
+        Args:
+            fig_width: The width of the figure in inches.
+
+        """
+        self.fig_width = fig_width
+        self.fig_height = self.fig_height_pixels / self.fig_width_pixels * self.fig_width
+        self.dpi = self.fig_width_pixels / self.fig_width
+        
     def set_framesize(self, width_pixels, height_pixels):
             """Set the frame size for the animation.
 
@@ -121,6 +150,9 @@ class AnimatorBase:
             self.fig_height_pixels = height_pixels
             self.fig_height = self.fig_height_pixels / self.fig_width_pixels * self.fig_width
             self.dpi = self.fig_width_pixels / self.fig_width
+            
+            ic(self.fig_width_pixels, self.fig_height_pixels, self.fig_width, self.fig_height, self.dpi)
+
 
     def set_interval(self, skip_interval):
         """Set the animation time step skip interval.
@@ -152,8 +184,32 @@ class AnimatorBase:
             
         # make figure
         self.fig, self.ax = plt.subplots(1, 1, figsize=(self.fig_width, self.fig_height))
-        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+        self.fig.tight_layout()
 
+        if self.show_axis:
+            pass
+            # other settings ... ?
+            
+        else:
+            self.fig.subplots_adjust(left=0, right=1, top=1, bottom=0) #was plt.subplots_adjust
+            self.ax.axis('off')
+            
+
+    def add_laser_visualization(self):
+        """ Add inset axes for visualizing the laser pulse. """
+        self.axins = self.ax.inset_axes(self.axins_shape)
+        self.axins.plot(
+            self.simulator.t_grid, 
+            self.simulator.laser_pulse_fun(self.simulator.t_grid), 
+            color='white'
+        )
+        self.axins_dot =  self.axins.plot(
+            self.simulator.t, 
+            self.simulator.laser_value, 
+            color='white', 
+            marker='o'
+        )
+        
 
 
             
@@ -188,12 +244,22 @@ class AnimatorBase:
             if simulator.t_index % self.skip_interval == 0:
                 
                 self.make_frame()
+                self.update_laser_visualization()
                 self.save_frame()
                 if hasattr(self, 'frame_postprocess'):
                     self.frame_postprocess(self)
 
         return callback
 
+
+    def update_laser_visualization(self):
+        """ Update the inset laser visualization plot"""
+        if hasattr(self, 'axins'):
+            # change x and y position of dot
+            self.axins_dot[0].set_xdata(self.simulator.t)
+            self.axins_dot[0].set_ydata(self.simulator.laser_value)
+
+        
     def make_frame(self):
         """Make a frame for the animation.
 
@@ -250,7 +316,7 @@ class AnimatorBase:
         return plt.imread(filename)
     
 
-    def make_movie(self, filename, duplicate_last_frame = 0):
+    def make_movie(self, filename = None, duplicate_last_frame = 0):
         """Make a movie from the frames.
 
         Args:
@@ -272,6 +338,12 @@ class AnimatorBase:
         if duplicate_last_frame > 0:
             for i in range(duplicate_last_frame):
                 self.copy_frame(-1)
+
+        if filename is None:
+            filename = self.name + '.mp4'
+
+        ic('making movie ...')
+        ic(filename)
 
         command = ('ffmpeg',
                    '-r', '24',
@@ -297,6 +369,7 @@ class AnimatorBase:
 
 
 
+
 class Animator1d(AnimatorBase):
     """
     Animator1d class for creating 1D animations.
@@ -314,14 +387,14 @@ class Animator1d(AnimatorBase):
         make_frame(self): Updates the plot for each frame of the animation.
     """
 
-    def __init__(self, simulator, folder = './frames/'):
+    def __init__(self, simulator, name = None):
         """
         Initialize the Animator1d object.
 
         Args:
             simulator: The simulator object used for the animation.
         """
-        super().__init__(simulator, folder = folder)
+        super().__init__(simulator, name = name)
         
         
         self.real_color = 'C0'
@@ -358,7 +431,12 @@ class Animator1d(AnimatorBase):
 
         return Vplot * 0.5 - 0.75
         
-        
+    def add_legend(self, loc = 'upper right'):
+        """ Add legend to anim.ax, labels are 'real', 'imat', 'abs', 'pot' """
+        self.labels = ['real', 'imag', 'abs', 'pot']
+        if self.show_legend:
+            self.ax.legend(self.labels, loc=loc, prop={'size': 16})
+
     def init_figure(self):
         """
         Initialize the figure and set up the plot.
@@ -383,9 +461,7 @@ class Animator1d(AnimatorBase):
         self.potline = plt.plot(x, self.get_potential_curve(), self.pot_color)
 
         # add legend
-        labels = ['real', 'imag', 'abs', 'pot']
-        if self.show_legend:
-            self.ax.legend(labels, loc='upper right', prop={'size': 16})
+        self.add_legend(loc = 'upper right')
 
 
         # zoom in if xlim is set
@@ -400,28 +476,28 @@ class Animator1d(AnimatorBase):
         
         # draw axis
         if self.show_axis:
-            ic('show axis')
+            ic('show axis 1d')
             # turn axis labels inwards
             #self.ax.tick_params(axis="y", direction="in", pad=-22)
-            self.ax.tick_params(axis="x", direction="in", pad=-self.xtick_pad)
+            #self.ax.tick_params(axis="x", direction="in", pad=-self.xtick_pad)
             # turn off vertical tick labels
-            self.ax.set_yticklabels([])
-            # turn off vertical tick marks
-            self.ax.tick_params(axis='y', which='both', length=0)
-            # turn off visibility for leftmost tick on x axis
-            self.ax.get_xticklabels()[0].set_visible(False)
-            self.ax.get_xticklabels()[-1].set_visible(False)
-            # turn off visibility for leftmost tick mark on x axis
-            self.ax.get_xticklines()[0].set_visible(False)
-            self.ax.get_xticklines()[-1].set_visible(False)
+        #     self.ax.set_yticklabels([])
+        #     # turn off vertical tick marks
+        #     self.ax.tick_params(axis='y', which='both', length=0)
+        #     # turn off visibility for leftmost tick on x axis
+        #     self.ax.get_xticklabels()[0].set_visible(False)
+        #     self.ax.get_xticklabels()[-1].set_visible(False)
+        #     # turn off visibility for leftmost tick mark on x axis
+        #     self.ax.get_xticklines()[0].set_visible(False)
+        #     self.ax.get_xticklines()[-1].set_visible(False)
         else:
             self.ax.axis('off')            
 
-        # turn off spines
-        self.ax.spines['top'].set_visible(False)
-        self.ax.spines['right'].set_visible(False)
-        self.ax.spines['bottom'].set_visible(False)
-        self.ax.spines['left'].set_visible(False)
+        # # turn off spines
+        # self.ax.spines['top'].set_visible(False)
+        # self.ax.spines['right'].set_visible(False)
+        # self.ax.spines['bottom'].set_visible(False)
+        # self.ax.spines['left'].set_visible(False)
 
 
 
@@ -468,14 +544,14 @@ class Animator2d(AnimatorBase):
         make_frame(self): Updates the plot for each frame of the animation.
     """
 
-    def __init__(self, simulator, folder = './frames/'):
+    def __init__(self, simulator, name = None):
         """
         Initialize the Animator1d object.
 
         Args:
             simulator: The simulator object used for the animation.
         """
-        super().__init__(simulator, folder = folder)
+        super().__init__(simulator, name = name)
         
         self.xlim = None # set to [x0, x1] to zoom in on a region
         self.ylim = None # set to [y0, y1] to zoom in on a region
@@ -484,19 +560,27 @@ class Animator2d(AnimatorBase):
         self.energy_shift = 0.0 # to shift frequency of phase oscillations. premultiplies wavefunction with exp(1j * energy_shift * t) before visualization.
         #self.vis_type = 'magnitude'
         self.mag_map = lambda x: x
+        self.mag_enhance = None # set to a scalar or a grid function to scale magnitude
         self.dens_factor = 0.75 # fraction of max density to show
         self.phase_cmap = colorcet.cm['CET_C6']
         #self.phase_cmap = colorcet.cm['CET_C3s']
-        self.mag_cmap = colorcet.cm['CET_L2']
+        self.mag_cmap = colorcet.cm['CET_L16']
+        
+
         
 
 
     def get_extent(self):
         """ Get extent of image plot. Used internally. """
         
-        x_range = self.simulator.x
-        y_range = self.simulator.y
-        return [np.min(x_range), np.max(x_range), np.min(y_range), np.max(x_range)]
+        x_range = self.simulator.grid.x[0]
+        y_range = self.simulator.grid.x[1]
+        ic()
+        ic(x_range.shape, y_range.shape)
+        
+        extent = [np.min(x_range), np.max(x_range), np.min(y_range), np.max(y_range)]
+        ic(extent)
+        return extent
 
     def init_figure(self):
         """
@@ -523,32 +607,54 @@ class Animator2d(AnimatorBase):
         self.make_bmp(psi) # self.bmp
         
         # plot bitmap
-        self.ax.clear()
+        
         self.image = self.ax.imshow(
             self.bmp,
             origin='lower', 
+            aspect='equal',
             extent = self.get_extent()
         )
+        #self.ax.autoscale(False)
+        self.ax.set_aspect('equal')
+        
         
         # set xlim and ylim
         if self.xlim is not None:
             self.ax.set_xlim(self.xlim[0], self.xlim[1])
         if self.ylim is not None:
             self.ax.set_ylim(self.ylim[0], self.ylim[1])
-            
+        
+        
+        
         # set caption
         self.place_caption()    
         
         
         if self.show_axis:
-            # move tick labels to the inside 
-            self.ax.tick_params(axis="y", direction="in", pad=-22)
-            self.ax.tick_params(axis="x", direction="in", pad=-15)        
+            # # move tick labels to the inside 
+            # #self.ax.tick_params(axis="y", direction="in", pad=-15)
+            # #self.ax.tick_params(axis="x", direction="in", pad=-25)
+            # # left align y tick labels
+            # #self.ax.axis["left"].major_ticklabels.set_ha("left")
+            # # turn off visibility for leftmost tick on x axis
+            # self.ax.get_xticklabels()[0].set_visible(False)
+            # self.ax.get_xticklabels()[-1].set_visible(False)
+            # # turn off visibility for leftmost tick mark on x axis
+            # self.ax.get_xticklines()[0].set_visible(False)
+            # self.ax.get_xticklines()[-1].set_visible(False)                
+            # # turn off visibility for leftmost tick on y axis
+            # self.ax.get_yticklabels()[0].set_visible(False)
+            # self.ax.get_yticklabels()[-1].set_visible(False)
+            # # turn off visibility for leftmost tick mark on y axis
+            # self.ax.get_yticklines()[0].set_visible(False)
+            # self.ax.get_yticklines()[-1].set_visible(False)
+            
+            pass
         else:
             self.ax.axis('off')
 
 
-    def add_potential_visualization_2d(self, transparent_range=[0, 0.1], cmap=dens_cmap):
+    def add_potential_visualization_2d(self, transparent_range=[0, 0.1], cmap=dens_cmap, contour=False):
         # customize figure by adding potential visualization
         if self.simulator.dim != 2:
             raise ValueError("add_potential_visualization_2d only works for 2d simulations")
@@ -558,13 +664,28 @@ class Animator2d(AnimatorBase):
         masked_V = np.ma.masked_where((V < transparent_range[1]) & (V >= transparent_range[0]), V)
         norm = matplotlib.colors.Normalize(vmin=transparent_range[1], vmax=V.max())
         cmap.set_bad(color='none') 
-        self.im_pot = self.ax.imshow(
-            masked_V.T, 
-            cmap=cmap, 
-            norm=norm, 
-            extent=self.get_extent(),
-            origin='lower'
-        )
+
+        if contour:
+
+            self.im_pot = self.ax.contour(
+                V.T, 
+                cmap=cmap,
+                extent=self.get_extent(),
+                linewidths=plt.rcParams['lines.linewidth']/2,
+                alpha=0.35
+            )
+    
+        else:        
+            self.im_pot = self.ax.imshow(
+                masked_V.T, 
+                cmap=cmap, 
+                norm=norm, 
+                extent=self.get_extent(),
+                origin='lower',
+                aspect='equal'
+            )
+            
+            
 
 
     def make_bmp(self, psi):
@@ -584,12 +705,17 @@ class Animator2d(AnimatorBase):
         if hasattr(self, 'no_scale'):
             scale = 1.0
 
+        if self.mag_enhance is not None:
+            psi_for_vis = self.mag_enhance * psi
+        else:
+            psi_for_vis = psi
+            
 
         phase_factor = np.exp(1j * self.energy_shift * self.simulator.t)
         if self.vis_type == 'complex':
-            bmp = phase_mag_vis2(phase_factor * psi.T / scale, cmap=self.phase_cmap, mag_map=self.mag_map)
+            bmp = phase_mag_vis2(phase_factor * psi_for_vis.T / scale, cmap=self.phase_cmap, mag_map=self.mag_map)
         elif self.vis_type == 'magnitude':    
-            bmp = mag_vis(psi.T/scale, cmap=self.mag_cmap,  mag_map=self.mag_map)
+            bmp = mag_vis(psi_for_vis.T / scale, cmap=self.mag_cmap,  mag_map=self.mag_map)
         else:    
             raise ValueError(f"Unknown vis_type: {self.vis_type}")
 
@@ -680,6 +806,7 @@ class DarkTheme(Style):
         self.anim.caption_pos = (0.06, 0.9)
         self.anim.caption_font = FontProperties(size=20, style='italic')
         self.anim.xtick_pad = 25 
+        self.anim.ytick_pad = 25 
         
         if isinstance(self.anim, Animator1d):
             # add legend to anim.ax, labels are 'real', 'imat', 'abs', 'pot'

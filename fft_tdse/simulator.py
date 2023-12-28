@@ -419,24 +419,13 @@ class Simulator:
         
         self.laser_potential_fun = laser_potential_fun
         
-    def prepare(self):
-        """ Prepare the simulation. This function is called after all parameters
-        have been set, and before the simulation is run.
-        
-        Args:
-            None
-        Returns:
-            None
-        """
-        
+    def setup_hamiltonian(self):
+        """ Set up the hamiltonian. Used in the prepare method."""
+
         # check if grid is set
         if not hasattr(self, 'grid'):
             raise ValueError("Grid not set.")
-        
-        # check if time grid is set
-        if not hasattr(self, 't_grid'):
-            raise ValueError("Time grid not set.")
-                
+
         # set up kinetic energy operator
         self.T_fun = lambda k: T_standard(k, mu=self.mass)
         
@@ -462,6 +451,27 @@ class Simulator:
             Dfun=lambda xx: self.charge*self.laser_potential_fun(*xx),
             Efun=self.laser_pulse_fun
         )
+      
+    def prepare(self):
+        """ Prepare the simulation. This function is called after all parameters
+        have been set, and before the simulation is run.
+        
+        Args:
+            None
+        Returns:
+            None
+        """
+        
+        # check if grid is set
+        if not hasattr(self, 'grid'):
+            raise ValueError("Grid not set.")
+        
+        # check if time grid is set
+        if not hasattr(self, 't_grid'):
+            raise ValueError("Time grid not set.")
+                
+                
+        self.setup_hamiltonian()
         
         ic(hasattr(self, 'gs'))
 
@@ -498,6 +508,9 @@ class Simulator:
             
         # set up a handy attribute for the user
         self.psi = self.wf.psi
+        
+        # set up laser pulse value
+        self.laser_value = self.laser_pulse_fun(self.t_grid[0])
         
         # set up propagator
         self.prop = Propagator(self.ham, self.dt)
@@ -568,6 +581,23 @@ class Simulator:
                 normalize=True
             )
 
+
+    def time_step(self):
+        """Performs the actual time step of the simulation. Can be modified
+        by subclasses to implement different time stepping schemes.
+        
+        The only requirement is that the wavefunction is updated to the next
+        time step, assuming that the current time is self.t.
+        
+        Args:
+            None
+        Returns:
+            None
+        """
+        
+        self.prop.strang(self.wf,self.t,will_do_another_step=False)
+
+        
             
     def simulate(self, callback: callable=None):
         """Run the simulation.
@@ -590,7 +620,8 @@ class Simulator:
 
         for i in tqdm(range(self.n_steps)):
             self.t = self.t_grid[i]
-            self.prop.strang(self.wf,self.t,will_do_another_step=False)
+            self.laser_value = self.laser_pulse_fun(self.t)
+            self.time_step() # prop.strang(self.wf,self.t,will_do_another_step=False)
             self.t_index += 1
             
             # handy for the user
