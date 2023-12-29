@@ -39,7 +39,7 @@ class LaserPulse:
     r""" A class for defining laser pulses. The general form of the pulse is
     
     $$
-    E(t) = E_0 \cdot f(t) \cdot \cos(\omega \cdot (t - t_0 - \frac{T}{2}))
+    E(t) = E_0 \cdot f(t) \cdot \cos(\phi + \omega \cdot (t - t_0 - \frac{T}{2}))
     $$
     
     where $f(t)$ is the envelope function, given by
@@ -58,7 +58,7 @@ class LaserPulse:
     
     """
 
-    def __init__(self, omega, t0, T, E0):
+    def __init__(self, omega, t0, T, E0, phi=0.0):
         """Initialize a laser pulse.
 
         Args:
@@ -66,11 +66,13 @@ class LaserPulse:
             t0 (float): The moment when the pulse emerges from the abyss.
             T (float): The duration of the pulse, a fleeting glimpse into the unknown.
             E0 (float): The amplitude of the pulse, a measure of its unfathomable power.
+            phi (float): The phase shift of the pulse, in units of pi.
         """
         self.omega = omega
         self.t0 = t0
         self.T = T
         self.E0 = E0
+        self.phi = phi
         self.envelope = np.vectorize(self.envelope)
 
     def envelope(self, t):
@@ -89,7 +91,7 @@ class LaserPulse:
 
     def __call__(self, t):
         """The laser pulse."""
-        return self.E0 * self.envelope(t) * np.cos(self.omega * (t - (self.t0 + self.T / 2)))
+        return self.E0 * self.envelope(t) * np.cos(self.phi*np.pi + self.omega * (t - (self.t0 + self.T / 2)))
     
         
 
