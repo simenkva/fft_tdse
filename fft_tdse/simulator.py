@@ -36,7 +36,7 @@ tqdm = tqdm_notebook if is_notebook() else tqdm_console
 
 
 class LaserPulse:
-    """ A class for defining laser pulses. The general form of the pulse is
+    r""" A class for defining laser pulses. The general form of the pulse is
     
     $$
     E(t) = E_0 \cdot f(t) \cdot \cos(\omega \cdot (t - t_0 - \frac{T}{2}))
