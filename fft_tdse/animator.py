@@ -16,7 +16,7 @@ import matplotlib as mpl
 from matplotlib.font_manager import FontProperties
 import mpl_toolkits.axisartist as axisartist
 from PIL import Image
-from is_notebook import is_notebook
+from .is_notebook import is_notebook
 
 
 
@@ -177,11 +177,8 @@ class AnimatorBase:
             preview: True to show a preview, False otherwise.
 
         """
-        if is_notebook():
-            self.preview = preview
-            self.preview_interval = preview_interval
-        else:
-            icm('preview only works in notebooks')
+        self.preview = preview
+        self.preview_interval = preview_interval
             
     def init_figure(self):
         """
@@ -270,11 +267,12 @@ class AnimatorBase:
                     self.frame_postprocess(self)
                     
                 # preview in notebook
-                if simulator.t_index % self.preview_interval == 0:
+                i = len(self.frame_list) - 1
+                if i % self.preview_interval == 0:
                     if self.preview and is_notebook():
                         # display frame in notebook
                         f = self.get_frame(-1)
-                        if simulator.t_index == 0:
+                        if i == 0:
                             display(f, display_id=self.name)
                         else:
                             update_display(f, display_id=self.name)
