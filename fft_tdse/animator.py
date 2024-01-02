@@ -10,11 +10,14 @@ import os
 from icecream import ic
 from .psiviz import phase_mag_vis2, mag_vis, dens_vis, phase_cmap, dens_cmap
 import colorcet
-from IPython.display import clear_output, display
+from IPython.display import clear_output, display, update_display
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib.font_manager import FontProperties
 import mpl_toolkits.axisartist as axisartist
+from PIL import Image
+from is_notebook import is_notebook
+
 
 
 
@@ -74,6 +77,10 @@ class AnimatorBase:
         self.extension = '.png'
         self.format = self.folder + self.basename + '%0' + str(self.digits) + 'd' + self.extension
         ic(self.format)
+        
+        # set up preview inline in notebook settings
+        self.preview = False # default = no preview
+        self.preview_interval = 1 # interval between frames in preview. default value implies every frame is shown.
         
         # set up caption
         self.caption_format = 't = {sim.t:.2f}'
@@ -163,6 +170,19 @@ class AnimatorBase:
         """
         self.skip_interval = skip_interval
 
+    def set_preview(self, preview, preview_interval = 1):
+        """Set whether to show a preview of the animation inline in a notebook.
+
+        Args:
+            preview: True to show a preview, False otherwise.
+
+        """
+        if is_notebook():
+            self.preview = preview
+            self.preview_interval = preview_interval
+        else:
+            icm('preview only works in notebooks')
+            
     def init_figure(self):
         """
         Initialize the figure before any frames are made.
@@ -248,6 +268,16 @@ class AnimatorBase:
                 self.save_frame()
                 if hasattr(self, 'frame_postprocess'):
                     self.frame_postprocess(self)
+                    
+                # preview in notebook
+                if simulator.t_index % self.preview_interval == 0:
+                    if self.preview and is_notebook():
+                        # display frame in notebook
+                        f = self.get_frame(-1)
+                        if simulator.t_index == 0:
+                            display(f, display_id=self.name)
+                        else:
+                            update_display(f, display_id=self.name)
 
         return callback
 
@@ -313,7 +343,9 @@ class AnimatorBase:
 
         """
         filename = self.frame_list[index]
-        return plt.imread(filename)
+        #return plt.imread(filename)
+        return Image.open(filename)
+    
     
 
     def make_movie(self, filename = None, duplicate_last_frame = 0):

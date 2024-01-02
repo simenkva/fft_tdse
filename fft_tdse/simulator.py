@@ -6,28 +6,11 @@ from tqdm import tqdm
 from icecream import ic
 
 from IPython import get_ipython
+from .is_notebook import is_notebook
 
 def icm(message):
     ic(message)
     
-    
-def is_notebook():
-    """
-    Check if the code is running in a Jupyter Notebook or not.
-
-    Returns:
-        bool: True if running in a Jupyter Notebook, False otherwise.
-    """
-    try:
-        shell = get_ipython().__class__.__name__
-        if shell == 'ZMQInteractiveShell':
-            return True
-        elif shell == 'TerminalInteractiveShell':
-            return False
-        else:
-            return False
-    except NameError:
-        return False
 
 # choose tqdm implementation
 from tqdm.notebook import tqdm as tqdm_notebook
