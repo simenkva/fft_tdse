@@ -18,6 +18,21 @@ from tqdm import tqdm as tqdm_console
 tqdm = tqdm_notebook if is_notebook() else tqdm_console
 
 
+
+def I_peak_to_E_peak(Ipeak = 3.51e16):
+    """Convert peak intensity to peak electric field.
+    
+    Args:
+        Ipeak (float): The peak intensity in W/cm^2. Default is equivalent to 1 atomic unit
+        
+    Returns:
+        float: The peak electric field in atomic units.
+    """
+    return np.sqrt(Ipeak / 3.51e16)
+
+
+
+
 class LaserPulse:
     r""" A class for defining laser pulses. The general form of the pulse is
     
@@ -25,10 +40,19 @@ class LaserPulse:
     E(t) = E_0 \cdot f(t) \cdot \cos(\phi + \omega \cdot (t - t_0 - \frac{T}{2}))
     $$
     
-    where $f(t)$ is the envelope function, given by
+    where $f(t)$ is an envelope function, by default given by
     
     $$ f(t) = \sin^2\left(\frac{\pi \cdot (t - t_0)}{T}\right). $$
     
+    Another option is a trapezoidal envelope function, given by
+    
+    $$ f(t) = \begin{cases}
+    t/t_0 & \text{if } t \leq T_0 \\
+    1 & \text{if } T_0 < t \leq (N-1) T_0 \\
+    N - t/T_0 & \text{if } (N-1) T_0 < t \leq N T_0   \\
+    \end{cases} $$
+        
+    where $T_0 = T/N$.
     
     Members:
         omega (float): The eldritch frequency that governs the pulse.
@@ -41,7 +65,7 @@ class LaserPulse:
     
     """
 
-    def __init__(self, omega, t0, T, E0, phi=0.0):
+    def __init__(self, omega, t0, T, E0, phi=0.0, N = 10, envelope='sin2'):
         """Initialize a laser pulse.
 
         Args:
@@ -56,9 +80,32 @@ class LaserPulse:
         self.T = T
         self.E0 = E0
         self.phi = phi
-        self.envelope = np.vectorize(self.envelope)
+        self.N = N
+        self.envelope = np.vectorize(self.envelope_sin2) if envelope == 'sin2' else np.vectorize(self.envelope_trap)
 
-    def envelope(self, t):
+    def envelope_trap(self, t):
+        """The envelope function of the laser pulse, trapezoidan version.
+
+        Args:
+            t (float): The time.
+
+        Returns:
+            float: The envelope function.
+        """
+        N = self.N
+        T0 = self.T / N
+        tt = t - self.t0
+        if tt <= T0:
+            return tt / T0
+        elif tt <= (N-1) * T0:
+            return 1.0
+        elif tt <= N * T0:
+            return N - tt / T0
+        else:
+            return 0.0
+
+
+    def envelope_sin2(self, t):
         """The envelope function of the laser pulse.
 
         Args:
