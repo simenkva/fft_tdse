@@ -95,11 +95,13 @@ class AnimatorBase:
         
         # add inset axes params
         self.axins_shape = [0.8, 0.8, 0.18, 0.18]
-        self.axins_dot_size = 100
+        self.axins_dot_size = 10
 
        
     def set_style(self, style):
         """ Set the style of the animation. """
+
+
         self.style = style
         
         style.set_anim(self)
@@ -215,6 +217,13 @@ class AnimatorBase:
     def add_laser_visualization(self):
         """ Add inset axes for visualizing the laser pulse. """
         self.axins = self.ax.inset_axes(self.axins_shape)
+        # reduce tick label font size
+        #self.axins.tick_params(axis='both', which='major', labelsize=12)
+        
+        # remove ticks on both axes
+        self.axins.set_xticks([])
+        self.axins.set_yticks([])
+        
         self.axins.plot(
             self.simulator.t_grid, 
             self.simulator.laser_pulse_fun(self.simulator.t_grid), 
@@ -224,8 +233,20 @@ class AnimatorBase:
             self.simulator.t, 
             self.simulator.laser_value, 
             color='white', 
-            marker='o'
+            marker='o',
+            markersize=self.axins_dot_size,
+            markeredgecolor='white'
         )
+        
+
+        # Increase limits slightly, for example by 10%
+        ymin, ymax = self.axins.get_ylim()
+        ymin_new = ymin - 0.1 * (ymax - ymin)
+        ymax_new = ymax + 0.1 * (ymax - ymin)
+
+        # Set new limits
+        self.axins.set_ylim(ymin_new, ymax_new)    
+                
         
 
 
@@ -384,7 +405,11 @@ class AnimatorBase:
                    '-y',  # Overwrite existing file
                    filename)
 
-        subprocess.call(command)
+
+        # store exit code
+        exit_code = subprocess.call(command)
+        ic(exit_code)
+
         
     def clean_frames(self):
         """Remove the frame files."""
@@ -392,6 +417,9 @@ class AnimatorBase:
             os.remove(filename)
         # delete folder
         os.rmdir(self.folder)
+        # close figure
+        plt.close(self.fig)
+        self.restore_backend()
         
             
     def restore_backend(self):
@@ -436,9 +464,10 @@ class Animator1d(AnimatorBase):
         self.pot_color = 'C3'
         self.xtick_pad = 15
         self.show_legend = False
+        self.semilogy = False
         
-        self.xlim = None # set to [x0, x1] to zoom in on a region
-
+        self.xlim = [self.simulator.grid.a[0], self.simulator.b[0]] #None # set to [x0, x1] to zoom in on a region
+        self.ylim = [-1.0, 1.0]
     
     def get_potential_curve(self):
         """ Get potential curve for plotting potential. 
@@ -488,10 +517,25 @@ class Animator1d(AnimatorBase):
         # Vplot = (self.simulator.ham.V - Vmin) / (Vmax - Vmin)
 
         # plot wavefunction
-        self.rline = plt.plot(x, psi.real, self.real_color)
-        self.iline = plt.plot(x, psi.imag, self.imag_color)
-        self.aline = plt.plot(x, np.abs(psi), self.abs_color)
-        self.potline = plt.plot(x, self.get_potential_curve(), self.pot_color)
+        
+        if self.semilogy == True:
+            self.rline = plt.semilogy(x, np.abs(psi.real), self.real_color)
+            self.iline = plt.semilogy(x, np.abs(psi.imag), self.imag_color)
+            self.aline = plt.semilogy(x, np.abs(psi), self.abs_color)
+            
+            
+        else:
+                
+            self.rline = plt.plot(x, psi.real, self.real_color)
+            self.iline = plt.plot(x, psi.imag, self.imag_color)
+            self.aline = plt.plot(x, np.abs(psi), self.abs_color)
+
+        # create new axis on top of current axis, but with linear scale
+        self.ax2 = self.ax.twinx()
+        self.ax2.set_yscale('linear')
+        self.ax2.set_ylim(-1,1)
+        self.potline = self.ax2.plot(x, self.get_potential_curve(), self.pot_color)
+
 
         # add legend
         self.add_legend(loc = 'upper right')
@@ -501,7 +545,7 @@ class Animator1d(AnimatorBase):
         if self.xlim is not None:
             plt.xlim(self.xlim[0], self.xlim[1])
 
-        plt.ylim(-1, 1)
+        self.ax.set_ylim(self.ylim[0], self.ylim[1])
 
         # set caption
         self.place_caption()
@@ -544,10 +588,22 @@ class Animator1d(AnimatorBase):
         """
 
         temp = self.simulator.psi
-        self.rline[0].set_ydata(temp.real)
-        self.iline[0].set_ydata(temp.imag)
-        self.aline[0].set_ydata(np.abs(temp))
-        self.potline[0].set_ydata(self.get_potential_curve())
+
+        if not self.semilogy:
+            self.rline[0].set_ydata(temp.real)
+            self.iline[0].set_ydata(temp.imag)
+            self.aline[0].set_ydata(np.abs(temp))
+            self.potline[0].set_ydata(self.get_potential_curve())
+        else:
+            self.rline[0].set_ydata(np.abs(temp.real))
+            self.iline[0].set_ydata(np.abs(temp.imag))
+            self.aline[0].set_ydata(np.abs(temp))
+            self.potline[0].set_ydata(self.get_potential_curve())
+            
+        # self.rline[0].set_ydata(temp.real)
+        # self.iline[0].set_ydata(temp.imag)
+        # self.aline[0].set_ydata(np.abs(temp))
+        # self.potline[0].set_ydata(self.get_potential_curve())
         
         caption_text = self.get_caption()
         self.caption.set_text(caption_text)
@@ -813,6 +869,10 @@ class DarkTheme(Style):
         
         colors = ['#00ff9f', '#d600ff', '#feff6e', '#001eff' ,'#00b8ff']
         mpl.rcParams['axes.prop_cycle'] = mpl.cycler(color=colors)
+        
+        # remove outlines of markers
+        mpl.rcParams['scatter.marker'] = 'o'
+        mpl.rcParams['scatter.edgecolors'] = 'none'
         
         # set thicker lines for plots
         mpl.rcParams['lines.linewidth'] = 2
