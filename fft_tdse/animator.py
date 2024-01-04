@@ -706,7 +706,7 @@ class Animator2d(AnimatorBase):
         #self.ax.autoscale(False)
         self.ax.set_aspect('equal')
         
-        
+       
         # set xlim and ylim
         if self.xlim is not None:
             self.ax.set_xlim(self.xlim[0], self.xlim[1])
