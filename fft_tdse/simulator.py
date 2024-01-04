@@ -54,6 +54,8 @@ class LaserPulse:
         
     where $T_0 = T/N$.
     
+    Finally, we have a square laser pulse, obtained by settint $N = np.inf$.
+    
     Members:
         omega (float): The eldritch frequency that governs the pulse.
         t0 (float): The moment when the pulse emerges from the abyss.
@@ -93,6 +95,12 @@ class LaserPulse:
             float: The envelope function.
         """
         N = self.N
+        
+        # square pulse envelope
+        if np.isinf(N):
+            return 1.0 if self.t0 <= t <= self.T + self.t0 else 0.0
+        
+        # trapezoidal envelope for N < np.inf
         T0 = self.T / N
         tt = t - self.t0
         if tt <= T0:
