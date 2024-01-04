@@ -645,12 +645,13 @@ class Animator2d(AnimatorBase):
         self.xlim = None # set to [x0, x1] to zoom in on a region
         self.ylim = None # set to [y0, y1] to zoom in on a region
         
+        self.no_scale = False # set to True to turn off density scaling
         self.vis_type = 'complex'
         self.energy_shift = 0.0 # to shift frequency of phase oscillations. premultiplies wavefunction with exp(1j * energy_shift * t) before visualization.
         #self.vis_type = 'magnitude'
         self.mag_map = lambda x: x
         self.mag_enhance = None # set to a scalar or a grid function to scale magnitude
-        self.dens_factor = 0.75 # fraction of max density to show
+        self.dens_factor = 0.75 # scale density before visualization, so that larger values can be shown
         self.phase_cmap = colorcet.cm['CET_C6']
         #self.phase_cmap = colorcet.cm['CET_C3s']
         self.mag_cmap = colorcet.cm['CET_L16']
@@ -786,12 +787,12 @@ class Animator2d(AnimatorBase):
     
         # compute max density, if not already computed
         # that is, if we are at the first frame ... 
-        if not hasattr(self.simulator, 'max_dens'):
-            max_dens = np.abs(psi).max() * dens_factor
-            scale = np.abs(psi).max() * dens_factor
+        if not hasattr(self, 'max_dens'):
+            self.max_dens = np.abs(psi).max() * dens_factor
+        scale = self.max_dens * dens_factor
         
         # hack to turn of density scaling
-        if hasattr(self, 'no_scale'):
+        if self.no_scale:
             scale = 1.0
 
         if self.mag_enhance is not None:
