@@ -86,7 +86,8 @@ class LaserPulse:
         self.envelope = np.vectorize(self.envelope_sin2) if envelope == 'sin2' else np.vectorize(self.envelope_trap)
 
     def envelope_trap(self, t):
-        """The envelope function of the laser pulse, trapezoidan version.
+        """The envelope function of the laser pulse, trapezoidal version. Also
+        supports a square pulse by setting N = np.inf.
 
         Args:
             t (float): The time.
