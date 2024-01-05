@@ -241,7 +241,15 @@ class Simulator:
         b = np.atleast_1d(np.asarray(b, dtype=float))
         n = np.atleast_1d(np.asarray(n, dtype=int))
 
+        # if user supplied a single value for a, b, n, repeat it
+        # over each dimension.
+        if len(a) == 1 and len(b) == 1 and len(n) == 1:
+            a = np.repeat(a, self.dim)
+            b = np.repeat(b, self.dim)
+            n = np.repeat(n, self.dim)
         
+        # check if the shapes are compatible
+        # and set the grid parameters
         if len(a) == len(b) and len(a) == len(n):
             if self.dim != len(a):
                 self.set_dimension(len(a))

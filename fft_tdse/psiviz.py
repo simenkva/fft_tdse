@@ -76,6 +76,14 @@ def phase_mag_vis2(z, rho1 = 1.0, rho2 = 2.0, cmap = phase_cmap, mag_map = lambd
     Output:
     - `rgb`: 3d real `np.ndarray`, the last dimension is an RGB value.
 
+    Example:
+    ```python
+    # assuming psi is a 2d complex array
+    bmp = phase_mag_vis2(psi)
+    plt.figure()
+    plt.imshow(bmp)
+    plt.show()
+    ```
     
     """
 
