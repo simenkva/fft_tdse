@@ -4,7 +4,6 @@ import os
 import shutil
 from icecream import ic
 import matplotlib
-#matplotlib.use('AGG')
 import subprocess
 import os
 from icecream import ic
@@ -51,14 +50,23 @@ class AnimatorBase:
 
     """
 
-    def __init__(self, simulator, name = None):
+    def __init__(self, simulator, name = 'animation'):
+        """Initialize the AnimatorBase object.
+
+        It is advisable to set a name for the animation, since frames will be saved in a folder with the name of the animation.
+        Using a unique name for each animation will prevent frames from different animations from being mixed up,
+        and will allow the animations to be run in parallel.
+
+        Args:
+            simulator (Simulator): The simulator object used for the animation.
+            name (str): The name of the animation. Used for output file naming, including the frames folder.
+        """
+        
+        # save Simulator instance
         self.simulator = simulator
 
-        # set up name of animation
-        if name is None:
-            self.name = "animation"
-        else:
-            self.name = name
+        # set up name
+        self.name = name
         ic(self.name)
         
         # set up folder for storing frames
@@ -69,9 +77,14 @@ class AnimatorBase:
         if not os.path.exists(self.folder):
             os.makedirs(self.folder)
 
+
+        # set up figure width in inches. height is computed from width and aspect ratio
         self.fig_width = 10
+        # set up frame size in pixels.
         self.set_framesize(800, 600)
+        # set up interval between frames
         self.skip_interval = 1
+        # set up frame file name format
         self.basename = 'frame'
         self.digits = 6
         self.extension = '.png'
@@ -99,7 +112,17 @@ class AnimatorBase:
 
        
     def set_style(self, style):
-        """ Set the style of the animation. """
+        """ Set the style of the animation. 
+        
+        At the moment, the only style programmed is DarkTheme():
+        ```python
+        anim.set_style(DarkTheme())
+        ```
+        
+        Args:
+            style: A Style object.
+        
+        """
 
 
         self.style = style
@@ -138,7 +161,7 @@ class AnimatorBase:
         """Set the width of the figure.
 
         Args:
-            fig_width: The width of the figure in inches.
+            fig_width: The width of the figure in inches. The height is computed from the aspect ratio if the figure size in pixels.
 
         """
         self.fig_width = fig_width
@@ -146,7 +169,7 @@ class AnimatorBase:
         self.dpi = self.fig_width_pixels / self.fig_width
         
     def set_framesize(self, width_pixels, height_pixels):
-            """Set the frame size for the animation.
+            """Set the frame size for the animation, in pixels.
 
             Args:
                 width_pixels (int): The width of the frame in pixels.
@@ -750,6 +773,19 @@ class Animator2d(AnimatorBase):
 
 
     def add_potential_visualization_2d(self, transparent_range=[0, 0.1], cmap=dens_cmap, contour=False):
+        """ Add potential visualization to 2d animation.
+        
+        Args:
+            transparent_range: range of potential values to make transparent
+            cmap: colormap to use for potential visualization
+            contour: whether to use contour plot instead of imshow
+        
+        
+        Returns:
+            None
+        """
+        
+        
         # customize figure by adding potential visualization
         if self.simulator.dim != 2:
             raise ValueError("add_potential_visualization_2d only works for 2d simulations")
