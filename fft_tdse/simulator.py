@@ -56,6 +56,19 @@ def check_function_signature(func, n_in, n_out):
 
 
 
+def I_peak_to_E_peak(Ipeak = 3.51e16):
+    """Convert peak intensity to peak electric field.
+    
+    Args:
+        Ipeak (float): The peak intensity in W/cm^2. Default is equivalent to 1 atomic unit
+        
+    Returns:
+        float: The peak electric field in atomic units.
+    """
+    return np.sqrt(Ipeak / 3.51e16)
+
+
+
 class LaserPulse:
     r""" A class for defining laser pulses. The general form of the pulse is
     
@@ -230,6 +243,9 @@ class Simulator:
         t0 (float): The initial time.
         t1 (float): The final time.
         n_steps (int): The number of time steps steps.
+        wf (FourierWavefunction): The current wavefunction
+        psi (np.ndarray): The current wavefunction, reference to wf.Psi, i.e., just a handy shortcut.
+        laser_value  (float): The current value of the laser pulse field strength.
         
     
     ```
@@ -500,8 +516,10 @@ class Simulator:
 
 
         # check number of args to initial_psi_fun
-        if initial_psi_fun.__code__.co_argcount != self.dim:
-            raise ValueError("initial_psi_fun must take {} arguments.".format(self.dim))  
+        if not check_function_signature(initial_psi_fun, self.dim, 1):
+            raise ValueError("initial_psi_fun has wrong function signature.")
+        # if initial_psi_fun.__code__.co_argcount != self.dim:
+        #     raise ValueError("initial_psi_fun must take {} arguments.".format(self.dim))  
         
         self.initial_psi_fun = initial_psi_fun
         
@@ -512,7 +530,7 @@ class Simulator:
         """Set the laser pulse as a function, a function of time only. See also set_laser_potential.
         
         Args:
-            laser_pulse_fun (callable): The laser pulse function. Must take 1 argument (time).
+            laser_pulse_fun (callable): The laser pulse function. Must take 1 argument (time), return a scalar, and be vectorized.
             
     
         Returns:
@@ -524,15 +542,19 @@ class Simulator:
         # if laser_pulse_fun.__code__.co_argcount != 1:
         #     raise ValueError("laser_pulse_fun must take 1 argument.")  
         
+        if not check_function_signature(laser_pulse_fun, 1, 1):
+            raise ValueError("laser_pulse_fun has wrong function signature.")
+        
+        
         self.laser_pulse_fun = laser_pulse_fun
         
     def set_laser_potential(self, laser_potential_fun : callable):
         """Set the laser potential as a function. Must accept 'dim' arguments. The
         total laser pulse potential is the product of the laser pulse function and
-        the laser potential function.
+        the laser potential function. Usually, this is the dipole operator in some form.
         
         Args:
-            laser_potential_fun (callable): The laser potential function. Must take 'dim' arguments (space).
+            laser_potential_fun (callable): The laser potential function. Must take 'dim' arguments (space), return a scalar, and be vectorized.
             
     
         Returns:
@@ -541,13 +563,16 @@ class Simulator:
 
 
         # check number of args to laser_potential_fun
-        if laser_potential_fun.__code__.co_argcount != self.dim:
-            raise ValueError("laser_potential_fun must take 'dim' arguments.")  
+        if not check_function_signature(laser_potential_fun, self.dim, 1):
+            raise ValueError("laser_potential_fun has wrong function signature.")
+        
+        # if laser_potential_fun.__code__.co_argcount != self.dim:
+        #     raise ValueError("laser_potential_fun must take 'dim' arguments.")  
         
         self.laser_potential_fun = laser_potential_fun
         
     def setup_hamiltonian(self):
-        """ Set up the hamiltonian. Used in the prepare method."""
+        """ Set up the hamiltonian. Used in the prepare method. Usually not called directly."""
 
         # check if grid is set
         if not hasattr(self, 'grid'):
@@ -556,7 +581,7 @@ class Simulator:
         # set up kinetic energy operator
         self.T_fun = lambda k: T_standard(k, mu=self.mass)
         
-        # set default laser potential 
+        # set default laser potential
         if not hasattr(self, 'laser_potential_fun'):
             # set default laser potential
             if self.dim == 1:
@@ -570,7 +595,7 @@ class Simulator:
         if not hasattr(self, 'laser_pulse_fun'):
             self.laser_pulse_fun = lambda t: 0.0
             
-    
+        # set up FourierHamiltonian object.
         self.ham = FourierHamiltonian(
             self.grid, 
             lambda xx: self.potential_fun(*xx), 
@@ -580,8 +605,15 @@ class Simulator:
         )
       
     def prepare(self):
-        """ Prepare the simulation. This function is called after all parameters
+        """ Prepare the simulation. This function is to be called after all parameters
         have been set, and before the simulation is run.
+        
+        If the initial condition is set, the ground state is *not* computed. If the
+        initial condition is not set, the ground state is computed and used as the
+        initial condition.
+        
+        If the ground state is computed, it is stored in the attribute 'gs', and hence not
+        recomputed upon subsequent calls to prepare.
         
         Args:
             None
@@ -597,19 +629,20 @@ class Simulator:
         if not hasattr(self, 't_grid'):
             raise ValueError("Time grid not set.")
                 
-                
+        # set up FourierHamiltonian object
         self.setup_hamiltonian()
         
-        ic(hasattr(self, 'gs'))
+
 
         # compute the initial condition on the grid if
         # it is not already set or if the ground state is not set
         if hasattr(self, 'initial_psi_fun'):
+            ic('Using given initial condition function. ')
             psi = self.initial_psi_fun(*self.grid.xx)
             self.wf = FourierWavefunction(self.grid, psi=psi)
         elif hasattr(self, 'gs'):
             # set the ground state wavefunction as initial condition
-            ic('reusing ground state from previous computation')
+            ic('Reusing ground state from previous computation')
             if hasattr(self, 'grid_gs'):
                 # interpolate to the simulation grid
                 self.wf.setPsi(
@@ -623,23 +656,24 @@ class Simulator:
                     normalize=True
                 )
         else:
-            ic('computing ground state ... ')
+            ic('Computing ground state ... ')
             # compute ground state wavefunction of potential
             # self.wf becomes the ground state
             if hasattr(self, 'ground_state_guess'):
-                ic('using guess for ground state ... ')
+                ic('Using guess for ground state ... ')
                 self.compute_ground_state(guess=self.ground_state_guess)
             else:
-                ic('not using guess for ground state ... ')
+                ic('Not using guess for ground state ... ')
                 self.compute_ground_state()
             
         # set up a handy attribute for the user
         self.psi = self.wf.psi
         
-        # set up laser pulse value
+        # set up laser pulse value,
+        # handy for the user
         self.laser_value = self.laser_pulse_fun(self.t_grid[0])
         
-        # set up propagator
+        # set up propagator.
         self.prop = Propagator(self.ham, self.dt)
             
     def compute_ground_state(self, gs_tol=1e-12, guess = None):
@@ -648,6 +682,7 @@ class Simulator:
         
         Args:
             gs_tol (float): The tolerance for the ground state computation.
+            guess (np.ndarray, optional): An initial guess for the ground state wavefunction.
             
         Returns:
             None
@@ -666,32 +701,36 @@ class Simulator:
         # self.wf = gs.wf    
 
         if hasattr(self, 'grid_gs'):
+            ic('Computing ground state on separate grid ... ')
             grid = self.grid_gs
         else:
+            ic('Computing ground state on main grid ... ')
             grid = self.grid
             
         xx = grid.xx
 
+        # set up ground Hamiltonian on the grid
         ham = FourierHamiltonian(
             grid, 
             Vfun=lambda xx: self.potential_fun(*xx), 
             Tfun=self.T_fun
         )
 
+        # Set up ground state computer
         gs = GroundStateComputer(ham)
         if guess is None:
             grid_shape = grid.xx[0].shape
             guess = np.random.rand(*grid_shape) - 0.5
         gs.setInitialGuess(guess)
 
-        #gs.setInitialGuess(np.exp(-(xx[0]**2 + xx[1]**2)/2))
 
+        # compute ground state
         gs.invit(sigma = np.min(ham.V), tol=gs_tol)
         self.gs = gs # save for future reference
         
-        ic(hasattr(self, 'gs'))
-           
-        # Create a wavefunction object
+   
+        # Create a wavefunction object, and
+        # set it as initial condition.
         self.wf = FourierWavefunction(self.grid)
         
         
@@ -722,7 +761,7 @@ class Simulator:
             None
         """
         
-        self.prop.strang(self.wf,self.t,will_do_another_step=False)
+        self.prop.strang(self.wf, self.t, will_do_another_step=False)
 
         
             
@@ -751,17 +790,19 @@ class Simulator:
                 callback(self)
 
 
-            self.time_step() # prop.strang(self.wf,self.t,will_do_another_step=False)
+            # Do the time step
+            self.time_step()
             self.t_index += 1
             
             # handy for the user
             self.psi = self.wf.psi
 
-            # if callback is not None:
-            #     callback(self)
-        
+
+        # Main loop finished, set the final time
+        # and do one more callback at the end.     
         self.t = self.t_grid[-1]
         self.laser_value = self.laser_pulse_fun(self.t)
+        
         if callback is not None:
             callback(self)
     
