@@ -19,17 +19,40 @@ tqdm = tqdm_notebook if is_notebook() else tqdm_console
 
 
 
-def I_peak_to_E_peak(Ipeak = 3.51e16):
-    """Convert peak intensity to peak electric field.
-    
-    Args:
-        Ipeak (float): The peak intensity in W/cm^2. Default is equivalent to 1 atomic unit
-        
-    Returns:
-        float: The peak electric field in atomic units.
-    """
-    return np.sqrt(Ipeak / 3.51e16)
 
+def check_function_signature(func, n_in, n_out):
+    """
+    Check if a function accepts n_in arrays of the same shape and returns n_out arrays of the same shape.
+
+
+    Args:
+        func (callable): The function to check.
+        n_in (int): The number of arrays to check the function with.
+        n_out (int): The number of arrays to check the function returns.
+
+    Returns:
+        bool: True if the function signature is valid, False otherwise.
+    """
+    try:
+        shape = (1,)
+        args = [np.empty(shape) for _ in range(n_in)]
+        result = func(*args)
+
+        if n_out > 1:
+            if not isinstance(result, tuple) or len(result) != n_out:
+                return False
+            else:
+                return all(isinstance(arr, np.ndarray) and arr.shape == shape for arr in result)
+        elif n_out == 1:
+            if isinstance(result, np.ndarray) and result.shape == shape:
+                return True
+            else:
+                return False
+        else:
+            return False
+            
+    except:
+        return False
 
 
 
@@ -61,8 +84,12 @@ class LaserPulse:
         t0 (float): The moment when the pulse emerges from the abyss.
         T (float): The duration of the pulse, a fleeting glimpse into the unknown.
         E0 (float): The amplitude of the pulse, a measure of its unfathomable power.
+        phi (float): The phase shift of the pulse, in units of pi.
+        N (int): The number of subdivisions in the trapezoidal envelope function.
     Functions:
-        envelope (float): The envelope function of the laser pulse.
+        envelope_trap (float): The envelope function of the laser pulse, trapezoidal version.
+        envelope_sin2 (float): The envelope function of the laser pulse, sin square version
+        envelope (float): The selected envelope function of the laser pulse.
         __call__ (float): The laser pulse.
     
     """
@@ -88,6 +115,14 @@ class LaserPulse:
     def envelope_trap(self, t):
         """The envelope function of the laser pulse, trapezoidal version. Also
         supports a square pulse by setting N = np.inf.
+        
+        The definition of the envelope is:
+        $$ f(t) = \begin{cases}
+        (t-t_0)/t_0 & \text{if } (t-t_0) \leq T_0 \\
+        1 & \text{if } T_0 < (t-t_0) \leq (N-1) T_0 \\
+        N - t/T_0 & \text{if } (N-1) T_0 < (t-t_0) \leq N T_0   \\
+        \end{cases} $$
+        
 
         Args:
             t (float): The time.
@@ -117,6 +152,11 @@ class LaserPulse:
     def envelope_sin2(self, t):
         """The envelope function of the laser pulse.
 
+    
+        The definition of the pulse is:
+        If $t \leq t_0$ or $t \geq t_0 + T$, then $f(t) = 0$. If $t_0 < t < t_0 + T$, then
+        $$ f(t) = \sin^2\left(\frac{\pi \cdot (t - t_0)}{T}\right). $$
+
         Args:
             t (float): The time.
 
@@ -140,6 +180,9 @@ class Simulator:
     The class defines a number of methods for setting up and running simulations.
     It provides a convenient interface to the FFT-TDSE code, and allows the user
     to easily read various variables during simulation using a callback feature.
+    
+    See also the Animator class for a convenient way to visualize the simulation
+    using the callback feature.
     
     Here is an example of how to use the simulator:
     
@@ -176,6 +219,19 @@ class Simulator:
     plt.figure()
     plt.imshow(sim.psi.real)
     plt.show()
+    
+    Important attributes:
+        mass (float): The particle mass. Default is 1.0.
+        charge (float): The particle charge. Default is -1.0.
+        dim (int): The dimension of the simulation. dim = 1 is default, dim=2 and 3 are supported.
+        a (np.ndarray): The lower bounds of the domain.
+        b (np.ndarray): The upper bounds of the domain.
+        n (np.ndarray): The number of points in the grid.
+        t0 (float): The initial time.
+        t1 (float): The final time.
+        n_steps (int): The number of time steps steps.
+        
+    
     ```
     
     """
@@ -224,6 +280,11 @@ class Simulator:
     def set_grid(self, a, b, n):
         """
         Set the grid for the simulation.
+        
+        The inputs a, b, and n can be either scalars or arrays of length dim.
+        If they are scalars, they are assumed to be the same for all dimensions.
+        If they are arrays, they must be of the same size, and the dimension
+        is set to that length.
 
         Args:
             a (array-like): The lower bounds of the domain.
@@ -273,10 +334,19 @@ class Simulator:
             self.y = self.grid.xx[1]
             self.z = self.grid.xx[2]
             
+        icm('Grid set.')
+        ic(self.a, self.b, self.n)
+        
+            
             
     def set_ground_state_grid(self, a_gs, b_gs, n_gs):
         """
-        Set the grid for the ground state computation.
+        Set the grid for the ground state computation. This grid is independent
+        of the main grid, and is optional. If not set, the main grid is used 
+        whenever the ground state or other eigenstates are computed.
+        
+        The arguments a_gs, b_gs, and n_gs can be either scalars or arrays of length dim.
+        
 
         Args:
             a_gs (array-like): The lower bounds of the domain.
@@ -294,6 +364,12 @@ class Simulator:
         b_gs = np.atleast_1d(np.asarray(b_gs, dtype=float))
         n_gs = np.atleast_1d(np.asarray(n_gs, dtype=int))
 
+        # if user supplied a single value for a_gs, b_gs, n_gs, repeat it
+        # over each dimension.
+        if len(a_gs) == 1 and len(b_gs) == 1 and len(n_gs) == 1:
+            a_gs = np.repeat(a_gs, self.dim)
+            b_gs = np.repeat(b_gs, self.dim)
+            n_gs= np.repeat(n_gs, self.dim)
         
         if len(a_gs) == len(b_gs) and len(a_gs) == len(n_gs):
             if self.dim != len(a_gs):
@@ -318,6 +394,9 @@ class Simulator:
             self.y_gs = self.grid_gs.xx[1]
             self.z_gs = self.grid_gs.xx[2]
             
+        icm('Ground state grid set.')
+        ic(self.a_gs, self.b_gs, self.n_gs)
+
         
         
     def set_time_parameters(self, t0, t1, n_steps):
@@ -345,7 +424,7 @@ class Simulator:
         self.dt = self.t_grid[1] - self.t_grid[0]
         
         
-        ic('Time grid:')
+        ic('Time parameters set.')
         ic(self.t0, self.t1, self.n_steps)
         
         
@@ -371,17 +450,16 @@ class Simulator:
         """Set the potential function.
         
         Args:
-            potential (callable): The potential function, assumed vectorized. Must take 'dim' arguments.
-
+            potential (callable): The potential function. Must take 'dim' arguments, and return a scalar. Assumed vectorized.
             
         Returns:
             None
         """
 
         # check number of args to potential
-        if potential_fun.__code__.co_argcount != self.dim:
-            raise ValueError("Potential must take {} arguments.".format(self.dim))  
-        
+        if not check_function_signature(potential_fun, self.dim, 1):
+            raise ValueError("Potential has wrong function signature.")  
+    
         self.potential_fun = potential_fun
         
     def set_mass(self, mass : float):

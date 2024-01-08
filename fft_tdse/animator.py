@@ -558,17 +558,22 @@ class Animator1d(AnimatorBase):
             #self.ax.tick_params(axis="y", direction="in", pad=-22)
             #self.ax.tick_params(axis="x", direction="in", pad=-self.xtick_pad)
             # turn off vertical tick labels
-        #     self.ax.set_yticklabels([])
-        #     # turn off vertical tick marks
-        #     self.ax.tick_params(axis='y', which='both', length=0)
-        #     # turn off visibility for leftmost tick on x axis
+            self.ax.set_yticklabels([])
+            self.ax2.set_yticklabels([])
+            # turn off vertical tick marks
+            self.ax.tick_params(axis='y', which='both', length=0)
+            self.ax2.tick_params(axis='y', which='both', length=0)
+            # turn off visibility for leftmost tick on x axis
         #     self.ax.get_xticklabels()[0].set_visible(False)
         #     self.ax.get_xticklabels()[-1].set_visible(False)
         #     # turn off visibility for leftmost tick mark on x axis
         #     self.ax.get_xticklines()[0].set_visible(False)
         #     self.ax.get_xticklines()[-1].set_visible(False)
+            # turn off vertical tick labels and tick marks
+            
         else:
-            self.ax.axis('off')            
+            self.ax.axis('off')          
+            self.ax2.axis('off')
 
         # # turn off spines
         # self.ax.spines['top'].set_visible(False)
