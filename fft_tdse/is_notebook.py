@@ -1,5 +1,6 @@
 from IPython import get_ipython
 
+
 def is_notebook():
     """
     Check if the code is running in a Jupyter Notebook or not.
@@ -9,9 +10,9 @@ def is_notebook():
     """
     try:
         shell = get_ipython().__class__.__name__
-        if shell == 'ZMQInteractiveShell':
+        if shell == "ZMQInteractiveShell":
             return True
-        elif shell == 'TerminalInteractiveShell':
+        elif shell == "TerminalInteractiveShell":
             return False
         else:
             return False
