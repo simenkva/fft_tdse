@@ -2,8 +2,7 @@
 
 _A simulation toolbox for the time-dependent Schrödinger equation dveloped for ease-of-use, aiming for physics and chemistry didactical use, but also reaseach. The toolbox is developed by Simen Kvaal at the Hylleraas Centre for Quantum Molecular Sciences at the University of Oslo, Norway._
 
-
-![HySE](Hyse.jpg "HySE"){width=320px}
+<img src="Hyse.jpg" alt="HySE" title="HySE" width="320" />
 
 
 ## About
