@@ -1,4 +1,12 @@
-# fft_tdse
+# HySE
+
+_A simulation toolbox for the time-dependent Schrödinger equation dveloped for ease-of-use, aiming for physics and chemistry didactical use, but also reaseach. The toolbox is developed by Simen Kvaal at the Hylleraas Centre for Quantum Molecular Sciences at the University of Oslo, Norway._
+
+
+![HySE](Hyse.jpg "HySE"){width=320px}
+
+
+## About
 
 This is a simulation toolbox for simulating the time-dependent Schrödinger equation,
 
