@@ -1,6 +1,6 @@
 import numpy as np
 from numpy.fft import fftn, ifftn, fftshift
-from scipy.sparse.linalg import cg, LinearOperator
+from scipy.sparse.linalg import cg, LinearOperator, bicgstab
 from .fouriergrid import interpolate, to_polar_2d
 
 
@@ -292,10 +292,83 @@ class FourierHamiltonian:
             self.Vfun = Vfun
             self.V = Vfun(self.grid.xx)
 
-    def apply(self, psi):
-        """Apply the Hamiltonian (minus E-field) to a spatial wavefunction psi."""
-        return ifftn(self.T * fftn(psi)) + self.V * psi
 
+    # def apply_hamiltonian_single(psi, t=0):
+    #     """ Apply Hamiltonian to a single wavefunctiion psi. """
+    #     phi = np.fft.fftn(psi)
+    #     Tpsi = np.fft.ifftn(T * phi)
+    #     Vpsi = (V + laser(t)*x) * psi
+    #     return Tpsi + Vpsi
+
+    # def apply_hamiltonian(psi, t=laser.t0):
+    #     """ Apply Hamiltonian to a collection of wavefunctions. """
+    #     if len(psi.shape) == len(grid.ng): # only a single function
+    #         return apply_hamiltonian_single(psi, t=t)
+    #     else:
+    #         ans = np.zeros_like(psi) # multiple functions
+    #         for i in range(psi.shape[-1]):
+    #             ans[...,i] = apply_hamiltonian_single(psi[...,i], t=t)
+    #         return ans
+        
+    def apply_single(self, psi_or_wf, t=None):
+        """Apply the Hamiltonian (minus E-field) to a spatial wavefunction psi.
+        
+        Args:
+            psi_or_wf: a spatial wavefunction, or a FourierWavefunction instance.
+            t: time. If None, the time-dependent potential is not used.
+            use_e_field: if True, the E-field is included in the Hamiltonian.
+            
+        Returns:
+            The result of the Hamiltonian applied to psi_or_wf, as a spatial wavefunction.
+        
+        """
+        
+        # if psi_or_wf is a FourierWavefunction, we extract psi and phi
+        # otherwise, we assume psi_or_wf is a spatial wavefunction
+        if isinstance(psi_or_wf, FourierWavefunction):
+            psi = psi_or_wf.psi
+            phi = psi_or_wf.phi
+        else:
+            psi = psi_or_wf
+            phi = fftn(psi)
+            
+        # apply the Hamiltonian
+        temp = ifftn(self.T * phi) + self.V * psi
+        if t is not None:
+            temp -= self.Efun(t) * self.D * psi
+            
+        # return the result
+        return temp
+    
+    def apply(self, psi, t=None):
+        """Apply the Hamiltonian (minus E-field) to a spatial wavefunction psi or a 
+        FourierWavefunction object, or an array of wavefunctions. If the shape of psi is
+        grid.ng, then the result will have the same shape. If the shape is grid.ng + (N,), then
+        the result will have the same shape, and N wavefunctions will be processed in `parallel`.
+        
+        
+        Args:
+            psi: a spatial wavefunction, a FourierWavefunction instance, or an array of wavefunctions.
+            
+        Returns:
+            The result of the Hamiltonian applied to psi, as a spatial wavefunction or an array of wavefunctions.
+        
+        """
+        
+        # chech if we have an ndarray as inpuy
+        if isinstance(psi, np.ndarray):
+            # check if we have a single wavefunction or a collection of wavefunctions
+            if len(psi.shape) == len(self.grid.ng):
+                return self.apply_single(psi, t=t)
+            elif len(psi.shape) == len(self.grid.ng) + 1:
+                return np.array([self.apply_single(psi[..., i], t=t) for i in range(psi.shape[-1])])
+        elif isinstance(psi, FourierWavefunction):
+            # if we have a FourierWavefunction, ...
+            return self.apply_single(psi, t=t)
+        else:
+            raise ValueError('Invalid input type')
+        
+        
     def energy(self, wf, Efield=0.0):
         """Compute the energy of the wavefunction psi. Assumes L2 normalized phi and psi."""
         # n1 = np.sum(wf.phi.conj() * wf.phi)
@@ -365,7 +438,8 @@ class FourierHamiltonian:
 
 
 class Propagator:
-    """Class for Strang splitting propagation of a FourierWavefunction using a FourierHamiltonian."""
+    """Class for Strang splitting propagation of a FourierWavefunction using a FourierHamiltonian. Oh
+    and we now also support Crank-Nicholson propagation, for academic reasons. """
 
     def __init__(self, ham, dt, time_dependent=True):
         """Constructor.
@@ -385,6 +459,31 @@ class Propagator:
         self.Vprop = np.exp(-1j * dt * self.ham.V)
         self.Eprop = lambda t: np.exp(-1j * dt * self.ham.Efun(t) * self.ham.D)
 
+
+    def crank_nicholson(self, wf, t, tol=1e-9, maxiter=1000, solver='bicgstab'):
+        """Perform a step of the Crank-Nicholson propagator"""
+        
+        shape = wf.psi.shape
+        dt = self.dt
+        def apply_ham(psi_vec, t):
+            psi = psi_vec.reshape(shape)
+            temp =  ifftn(self.ham.T * fftn(psi)) + self.ham.V * psi + self.ham.Efun(t) * self.ham.D * psi
+            return temp.reshape((np.prod(shape),))
+        
+        matvec = lambda x: x + 0.5j * dt * apply_ham(x, t + dt/2)
+        psi_vec = wf.psi.reshape((np.prod(shape),))
+        rhs = psi_vec - 0.5j * dt * apply_ham(psi_vec, t + dt/2)
+        A = LinearOperator((np.prod(shape),np.prod(shape)), matvec = matvec, dtype = complex)
+        if solver == 'bicgstab':
+            psi_vec, info = bicgstab(A, rhs, x0 = psi_vec, tol = tol, maxiter = maxiter)
+        else:
+            raise NotImplementedError('not yet implemented')
+        
+        wf.setPsi(psi_vec.reshape(shape), set_dual = True, normalize = False)
+        return info            
+            
+        raise NotImplementedError('not yet implemented')
+        
     def strang(self, wf, t, will_do_another_step=True):
         """Perform a step of the Strang splitting propagator.
 
