@@ -274,7 +274,17 @@ class Simulator:
         self.mass = 1.0
         self.charge = -1.0
         self.dim = 1
+        self.set_propagator('strang-3')
 
+    def set_propagator(self, method = 'strang-3'):
+        if method not in ['strang-3', 'crank-nicholson']:
+            raise ValueError('Invalid integration scheme')
+        
+        ic()
+        icm(f'Propagation method set to "{method}"')
+        self.propagation_method = method
+
+        
     def set_dimension(self, dim: int):
         """
         Set the dimension for the simulator.
@@ -729,7 +739,13 @@ class Simulator:
             None
         """
 
-        self.prop.strang(self.wf, self.t, will_do_another_step=False)
+        if self.propagation_method == 'strang-3':
+            self.prop.strang(self.wf, self.t, will_do_another_step=False)
+        elif self.propagation_method == 'crank-nicholson':
+            self.prop.crank_nicholson(self.wf, self.t)
+        else:
+            raise ValueError('Invalid integration scheme')
+
 
     def simulate(self, callback: callable = None):
         """Run the simulation.

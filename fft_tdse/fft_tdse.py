@@ -330,10 +330,10 @@ class FourierHamiltonian:
             phi = psi_or_wf.phi
         else:
             psi = psi_or_wf
-            phi = fftn(psi)
+            phi = fftn(psi, norm="ortho")
             
         # apply the Hamiltonian
-        temp = ifftn(self.T * phi) + self.V * psi
+        temp = ifftn(self.T * phi, norm="ortho") + self.V * psi
         if t is not None:
             temp -= self.Efun(t) * self.D * psi
             
@@ -361,7 +361,11 @@ class FourierHamiltonian:
             if len(psi.shape) == len(self.grid.ng):
                 return self.apply_single(psi, t=t)
             elif len(psi.shape) == len(self.grid.ng) + 1:
-                return np.array([self.apply_single(psi[..., i], t=t) for i in range(psi.shape[-1])])
+                temp = np.zeros_like(psi)
+                for i in range(psi.shape[-1]):
+                    temp[..., i] = self.apply_single(psi[..., i], t=t)
+                return temp
+#                return np.array([self.apply_single(psi[..., i], t=t) for i in range(psi.shape[-1])])
         elif isinstance(psi, FourierWavefunction):
             # if we have a FourierWavefunction, ...
             return self.apply_single(psi, t=t)
@@ -460,15 +464,40 @@ class Propagator:
         self.Eprop = lambda t: np.exp(-1j * dt * self.ham.Efun(t) * self.ham.D)
 
 
-    def crank_nicholson(self, wf, t, tol=1e-9, maxiter=1000, solver='bicgstab'):
-        """Perform a step of the Crank-Nicholson propagator"""
+    def crank_nicholson(self, psi_or_wf, t, tol=1e-9, maxiter=1000, solver='bicgstab'):
+        """Perform a step of the Crank-Nicholson propagator
         
+        Args:
+            psi_or_wf: a spatial wavefunction, or a FourierWavefunction instance.
+            t: time
+            tol: tolerance for the linear solver
+            maxiter: maximum number of iterations for the linear solver
+            solver: linear solver to use (bicgstab or cg)
+        
+        Returns:
+            None if psi_or_wf is a FourierWavefunction, otherwise the result of the propagation as a spatial wavefunction.
+        
+        
+        
+        """
+        
+        # if psi_or_wf is a FourierWavefunction, we extract psi and phi
+        # otherwise, we assume psi_or_wf is a spatial wavefunction
+        if isinstance(psi_or_wf, FourierWavefunction):
+            wf = psi_or_wf
+        else:
+            wf = FourierWavefunction(self.ham.grid)
+            wf.setPsi(psi_or_wf, set_dual=True, normalize=False)
+            
         shape = wf.psi.shape
         dt = self.dt
         def apply_ham(psi_vec, t):
             psi = psi_vec.reshape(shape)
-            temp =  ifftn(self.ham.T * fftn(psi)) + self.ham.V * psi + self.ham.Efun(t) * self.ham.D * psi
-            return temp.reshape((np.prod(shape),))
+            #temp =  ifftn(self.ham.T * fftn(psi)) + self.ham.V * psi + self.ham.Efun(t) * self.ham.D * psi
+            #return temp.reshape((np.prod(shape),))
+            return self.ham.apply(psi, t).reshape((np.prod(shape),))
+        
+        
         
         matvec = lambda x: x + 0.5j * dt * apply_ham(x, t + dt/2)
         psi_vec = wf.psi.reshape((np.prod(shape),))
@@ -480,17 +509,36 @@ class Propagator:
             raise NotImplementedError('not yet implemented')
         
         wf.setPsi(psi_vec.reshape(shape), set_dual = True, normalize = False)
-        return info            
+        
+        if isinstance(psi_or_wf, FourierWavefunction):
+            return None
+        else:
+            return wf.psi
+                   
             
         raise NotImplementedError('not yet implemented')
         
-    def strang(self, wf, t, will_do_another_step=True):
+    def strang(self, psi_or_wf, t, will_do_another_step=True):
         """Perform a step of the Strang splitting propagator.
 
-        wf = wavefuntion to propagate
-        t = time
-        will_do_another_step: if True (default), the spatial wavefunction is *not* recomputed at the end of
-        the step, since that would incur an extra fftn call."""
+        Args:
+            psi_or_wf: a spatial wavefunction, or a FourierWavefunction instance.
+            t: time
+            will_do_another_step: if True (default), the spatial wavefunction is *not* recomputed at the end of the step, since that would incur an extra fftn call.
+
+        Returns:
+            None if psi_or_wf is a FourierWavefunction, otherwise the result of the propagation as a spatial wavefunction.
+        
+        """
+
+        # if psi_or_wf is a FourierWavefunction, we extract psi and phi
+        # otherwise, we assume psi_or_wf is a spatial wavefunction
+        if isinstance(psi_or_wf, FourierWavefunction):
+            wf = psi_or_wf
+        else:
+            wf = FourierWavefunction(self.ham.grid)
+            wf.setPsi(psi_or_wf, set_dual=True, normalize=False)
+            
 
         wf.applyFrequencyOperator(self.Tprop)
 
@@ -503,6 +551,12 @@ class Propagator:
         # wf.applyFrequencyOperator(self.Tprop,update_dual = not will_do_another_step)
 
         wf.applyFrequencyOperator(self.Tprop, update_dual=not will_do_another_step)
+
+        # return the result of the propagation        
+        if isinstance(psi_or_wf, FourierWavefunction):
+            return None
+        else:
+            return wf.psi
 
 
 class GroundStateComputer:
