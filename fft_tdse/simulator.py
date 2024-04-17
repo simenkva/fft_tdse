@@ -298,7 +298,7 @@ class Simulator:
         Returns:
             None
         """
-        if dim not in {1, 2, 3}:
+        if dim not in {1, 2, 3, 4}:
             raise ValueError("Dimension not supported.")
 
         self.dim = dim
@@ -361,7 +361,12 @@ class Simulator:
             self.x = self.grid.xx[0]
             self.y = self.grid.xx[1]
             self.z = self.grid.xx[2]
-
+        elif self.dim == 4:
+            self.x = self.grid.xx[0]
+            self.y = self.grid.xx[1]
+            self.z = self.grid.xx[2]
+            self.w = self.grid.xx[3]
+            
         icm("Grid set.")
         ic(self.a, self.b, self.n)
 
@@ -419,7 +424,12 @@ class Simulator:
             self.x_gs = self.grid_gs.xx[0]
             self.y_gs = self.grid_gs.xx[1]
             self.z_gs = self.grid_gs.xx[2]
-
+        elif self.dim == 4:
+            self.x_gs = self.grid_gs.xx[0]
+            self.y_gs = self.grid_gs.xx[1]
+            self.z_gs = self.grid_gs.xx[2]
+            self.w_gs = self.grid_gs.xx[3]
+            
         icm("Ground state grid set.")
         ic(self.a_gs, self.b_gs, self.n_gs)
 
@@ -588,6 +598,9 @@ class Simulator:
                 self.laser_potential_fun = lambda x, y: x
             elif self.dim == 3:
                 self.laser_potential_fun = lambda x, y, z: x
+            elif self.dim == 4:
+                self.laser_potential_fun = lambda x, y, z, w: x
+                
 
         # set default laser pulse
         if not hasattr(self, "laser_pulse_fun"):
