@@ -600,7 +600,7 @@ class GroundStateComputer:
         print(f"Initial guess: resid = {resid}, E = {E.real}")
         for k in range(maxit):
             psi_prev = psi
-            psi, info = cg(A, psi, x0=psi, tol=np.min([cgtol, delta]))
+            psi, info = cg(A, psi, x0=psi, rtol=np.min([cgtol, delta]))
             psi = psi / np.linalg.norm(psi)
             # self.wf.setPsi(psi, set_dual = False)
             delta = np.linalg.norm(psi - psi_prev)

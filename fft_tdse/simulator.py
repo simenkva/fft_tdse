@@ -487,10 +487,13 @@ class Simulator:
         """
 
         # check number of args to potential
-        if not check_function_signature(potential_fun, self.dim, 1):
-            raise ValueError("Potential has wrong function signature.")
+        # if not check_function_signature(potential_fun, self.dim, 1):
+        #     raise ValueError("Potential has wrong function signature.")
 
+        
         self.potential_fun = potential_fun
+        
+        icm("Potential function set set.")
 
     def set_mass(self, mass: float):
         """Set the particle mass.
@@ -527,15 +530,18 @@ class Simulator:
         """
 
         # check number of args to initial_psi_fun
-        if not check_function_signature(initial_psi_fun, self.dim, 1):
-            raise ValueError("initial_psi_fun has wrong function signature.")
+        # if not check_function_signature(initial_psi_fun, self.dim, 1):
+        #     raise ValueError("initial_psi_fun has wrong function signature.")
         # if initial_psi_fun.__code__.co_argcount != self.dim:
         #     raise ValueError("initial_psi_fun must take {} arguments.".format(self.dim))
 
-        self.initial_psi_fun = initial_psi_fun
-
-        icm("Initial condition set.")
-        ic(self.initial_psi_fun)
+        if callable(initial_psi_fun):
+            self.initial_psi_fun = initial_psi_fun
+            icm("Initial condition set as a callable.")
+        else:
+            self.initial_psi = initial_psi_fun
+            icm("Initial condition set as an array.")
+        
 
     def set_laser_pulse(self, laser_pulse_fun: callable):
         """Set the laser pulse as a function, a function of time only. See also set_laser_potential.
@@ -552,10 +558,11 @@ class Simulator:
         # if laser_pulse_fun.__code__.co_argcount != 1:
         #     raise ValueError("laser_pulse_fun must take 1 argument.")
 
-        if not check_function_signature(laser_pulse_fun, 1, 1):
-            raise ValueError("laser_pulse_fun has wrong function signature.")
+        # if not check_function_signature(laser_pulse_fun, 1, 1):
+        #     raise ValueError("laser_pulse_fun has wrong function signature.")
 
         self.laser_pulse_fun = laser_pulse_fun
+        icm("Laser pulse set.")
 
     def set_laser_potential(self, laser_potential_fun: callable):
         """Set the laser potential as a function. Must accept 'dim' arguments. The
@@ -571,14 +578,15 @@ class Simulator:
         """
 
         # check number of args to laser_potential_fun
-        if not check_function_signature(laser_potential_fun, self.dim, 1):
-            raise ValueError("laser_potential_fun has wrong function signature.")
+        # if not check_function_signature(laser_potential_fun, self.dim, 1):
+        #     raise ValueError("laser_potential_fun has wrong function signature.")
 
         # if laser_potential_fun.__code__.co_argcount != self.dim:
         #     raise ValueError("laser_potential_fun must take 'dim' arguments.")
 
         self.laser_potential_fun = laser_potential_fun
-
+        icm("Laser potential set.")
+        
     def setup_hamiltonian(self):
         """Set up the hamiltonian. Used in the prepare method. Usually not called directly."""
 
@@ -607,6 +615,7 @@ class Simulator:
             self.laser_pulse_fun = lambda t: 0.0
 
         # set up FourierHamiltonian object.
+        
         self.ham = FourierHamiltonian(
             self.grid,
             lambda xx: self.potential_fun(*xx),
@@ -615,7 +624,7 @@ class Simulator:
             Efun=self.laser_pulse_fun,
         )
 
-    def prepare(self):
+    def prepare(self, normalize_wavefunction = True):
         """Prepare the simulation. This function is to be called after all parameters
         have been set, and before the simulation is run.
 
@@ -645,7 +654,12 @@ class Simulator:
 
         # compute the initial condition on the grid if
         # it is not already set or if the ground state is not set
-        if hasattr(self, "initial_psi_fun"):
+        if hasattr(self, "initial_psi"):
+            ic("Using given initial condition. ")
+            self.wf = FourierWavefunction(self.grid, psi=self.initial_psi)
+            
+        elif hasattr(self, "initial_psi_fun"):
+            
             ic("Using given initial condition function. ")
             psi = self.initial_psi_fun(*self.grid.xx)
             self.wf = FourierWavefunction(self.grid, psi=psi)
@@ -654,10 +668,10 @@ class Simulator:
             ic("Reusing ground state from previous computation")
             if hasattr(self, "grid_gs"):
                 # interpolate to the simulation grid
-                self.wf.setPsi(self.gs.wf.interpolate(self.grid).psi, normalize=True)
+                self.wf.setPsi(self.gs.wf.interpolate(self.grid).psi, normalize=normalize_wavefunction)
             else:
                 # set the wavefunction
-                self.wf.setPsi(self.gs.wf.psi, normalize=True)
+                self.wf.setPsi(self.gs.wf.psi, normalize=normalize_wavefunction)
         else:
             ic("Computing ground state ... ")
             # compute ground state wavefunction of potential
