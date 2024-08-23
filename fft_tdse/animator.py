@@ -907,3 +907,53 @@ class DarkTheme(Style):
 
     def frame_postprocess(self, anim: AnimatorBase):
         return None
+
+
+class LightTheme(Style):
+    def mpl_style(self):
+        # set dark theme in matplotlib
+
+        ic("inside mpl_style")
+
+        plt.style.use("default")
+
+        colors = ["#1f77b4", "#ff7f0e", "#000000", "#d62728", "#9467bd"]
+        
+        mpl.rcParams["axes.prop_cycle"] = mpl.cycler(color=colors)
+
+        # remove outlines of markers
+        mpl.rcParams["scatter.marker"] = "o"
+        mpl.rcParams["scatter.edgecolors"] = "none"
+
+        # set thicker lines for plots
+        mpl.rcParams["lines.linewidth"] = 2
+        mpl.rcParams["axes.linewidth"] = 2
+
+        # set font size for labels
+        mpl.rcParams["axes.labelsize"] = 20
+
+        # set font to be Manrope for all text
+        #        mpl.rcParams['font.family'] = 'JetBrains Mono'
+        # Set alternative font if JetBrains Mono is not available,
+        # include system default in list of sans-serif fonts
+        mpl.rcParams["font.sans-serif"] = ["JetBrains Mono", "DejaVu Sans"]
+
+        # set font size for ticks
+        mpl.rcParams["xtick.labelsize"] = 16
+        mpl.rcParams["ytick.labelsize"] = 16
+        # set tick marker size
+        mpl.rcParams["xtick.major.size"] = 10
+        mpl.rcParams["xtick.major.width"] = 1
+
+        # set caption location in anim
+        self.anim.caption_pos = (0.06, 0.9)
+        self.anim.caption_font = FontProperties(size=20, style="italic")
+        self.anim.xtick_pad = 25
+        self.anim.ytick_pad = 25
+
+        if isinstance(self.anim, Animator1d):
+            # add legend to anim.ax, labels are 'real', 'imat', 'abs', 'pot'
+            self.anim.show_legend = True
+
+    def frame_postprocess(self, anim: AnimatorBase):
+        return None
