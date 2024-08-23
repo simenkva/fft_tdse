@@ -251,18 +251,22 @@ class AnimatorBase:
         self.axins.set_xticks([])
         self.axins.set_yticks([])
 
+
+        # find color of axis lines from rcParams
+        axis_color = mpl.rcParams['axes.edgecolor']
+        
         self.axins.plot(
             self.simulator.t_grid,
             self.simulator.laser_pulse_fun(self.simulator.t_grid),
-            color="white",
+            color=axis_color,
         )
         self.axins_dot = self.axins.plot(
             self.simulator.t,
             self.simulator.laser_value,
-            color="white",
+            color=axis_color,
             marker="o",
             markersize=self.axins_dot_size,
-            markeredgecolor="white",
+            markeredgecolor=axis_color,
         )
 
         # Increase limits slightly, for example by 10%
